@@ -1,0 +1,427 @@
+schema_version: "0.2"
+
+project:
+  name: null
+  description: null
+  problem_type: null
+
+  # Tracks the overall state of requirements/design.
+  status: "draft" # draft | requirements_in_progress | requirements_complete | designed | implementation_ready | validated
+
+business:
+  objective: null
+
+  success_criteria: []
+
+  decisions: []
+
+data:
+  source:
+    type: null
+    location: null
+
+  dataset:
+    name: null
+    format: null
+    version: null
+
+  schema:
+    columns: []
+    # Example column:
+    # - name: transaction_id
+    #   data_type: string
+    #   nullable: false
+    #   role: entity
+    #   description: null
+
+  entity:
+    columns: []
+    definition: null
+
+  timestamp:
+    column: null
+    timezone: null
+    granularity: null
+
+  features:
+    numerical: []
+    categorical: []
+    temporal: []
+    contextual: []
+    derived: []
+
+  target:
+    column: null
+    available: null
+    definition: null
+
+  volume:
+    approximate_rows: null
+    growth_rate: null
+
+  frequency:
+    ingestion: null
+    data_arrival: null
+
+requirements:
+  # Each requirement may be:
+  # unknown | provided | derived | confirmed | conflicting
+  state: "in_progress"
+
+  items: []
+  # Example:
+  # - id: inference_mode
+  #   value: batch
+  #   state: confirmed
+  #   source: user
+  #   required: true
+
+  unresolved: []
+
+  conflicts: []
+
+  assumptions: []
+
+  user_decisions: []
+
+ml_design:
+  learning_paradigm: null
+
+  problem_definition:
+    objective: null
+    definition: null
+
+  data_requirements:
+    minimum_training_data: null
+    assumptions: []
+
+  feature_strategy:
+    input_features: []
+    transformations: []
+    derived_features: []
+    temporal_features: []
+    contextual_features: []
+    inference_available: true
+
+  candidate_algorithms: []
+
+  selected_algorithm:
+    name: null
+    selection_reason: null
+
+  training_strategy:
+    strategy: null
+    data_window: null
+    split_strategy: null
+    temporal_split: null
+    retraining_required: null
+
+  validation_strategy:
+    strategy: null
+    metrics: []
+    acceptance_criteria: []
+
+  test_strategy:
+    enabled: true
+    strategy: null
+    metrics: []
+    acceptance_criteria: []
+
+  threshold_strategy:
+    method: null
+    value: null
+    rationale: null
+    version: null
+
+  explainability:
+    required: null
+    strategy: null
+
+  model_outputs:
+    fields: []
+
+anomaly_detection:
+  enabled: false
+
+  definition:
+    observation: null
+    normal_behavior: null
+    abnormal_behavior: null
+    business_context: null
+    expected_action: null
+
+  anomaly_type: null # point | contextual | collective
+
+  entity:
+    columns: []
+
+  temporal_context:
+    required: null
+    baseline_window: null
+    comparison_window: null
+
+  labels:
+    available: null
+    column: null
+    strategy: null
+    reliability: null
+    coverage: null
+    recency: null
+    delay: null
+
+  expected_anomaly_frequency: null
+
+  training_assumption:
+    mostly_normal_data: null
+    known_anomalies_available: null
+
+data_pipeline:
+  enabled: true
+
+  stages:
+    ingestion: []
+    validation: []
+    cleaning: []
+    preprocessing: []
+    feature_engineering: []
+
+  transformation_contract:
+    training:
+      fit_transformations: true
+      persist_artifacts: true
+
+    validation:
+      load_training_artifacts: true
+      fit_transformations: false
+
+    test:
+      load_training_artifacts: true
+      fit_transformations: false
+
+    inference:
+      load_training_artifacts: true
+      fit_transformations: false
+
+  feature_contract:
+    input_schema: []
+    output_schema: []
+    feature_order: []
+    missing_value_strategy: null
+
+  artifacts:
+    transformation_artifact:
+      required: true
+      name: null
+      version: null
+      location: null
+
+training:
+  enabled: true
+
+  pipeline:
+    trigger: null
+    schedule: null
+
+  algorithm:
+    name: null
+    version: null
+    configuration: {}
+
+  data:
+    source_version: null
+    training_window: null
+
+  validation:
+    strategy: null
+    metrics: []
+    acceptance_criteria: []
+
+  test:
+    enabled: true
+    strategy: null
+    metrics: []
+
+  artifacts:
+    model:
+      name: null
+      version: null
+      location: null
+
+    transformation:
+      name: null
+      version: null
+      location: null
+
+    metadata:
+      training_config: {}
+      feature_definition_version: null
+      data_version: null
+      code_version: null
+      random_seed: null
+
+inference:
+  enabled: true
+
+  mode: null # batch | realtime
+
+  frequency: null
+
+  input:
+    source: null
+    schema: []
+
+  preprocessing:
+    transformation_artifact:
+      name: null
+      version: null
+      location: null
+
+    fit_allowed: false
+
+  model:
+    name: null
+    version: null
+
+  output:
+    location: null
+    format: null
+    schema: []
+
+  operational_requirements:
+    latency: null
+    throughput: null
+
+monitoring:
+  enabled: false
+
+  data_drift:
+    enabled: false
+    metrics: []
+    thresholds: []
+
+  model_drift:
+    enabled: false
+    metrics: []
+    thresholds: []
+
+  performance:
+    enabled: false
+    metrics: []
+    thresholds: []
+
+  data_quality:
+    enabled: false
+    checks: []
+
+  prediction_monitoring:
+    enabled: false
+    metrics: []
+
+retraining:
+  enabled: false
+
+  trigger:
+    type: null
+    threshold: null
+    schedule: null
+
+  strategy:
+    full_retrain: null
+    incremental: null
+
+  validation_required: true
+
+pipeline:
+  data:
+    enabled: true
+    stages: []
+
+  training:
+    enabled: true
+    stages: []
+
+  inference:
+    enabled: true
+    stages: []
+
+  retraining:
+    enabled: false
+    stages: []
+
+  dependencies: []
+
+platform:
+  name: null
+
+  capabilities: []
+
+  requirements: []
+
+  mapping:
+    # Populated by platform adapter.
+    data_storage: null
+    compute: null
+    orchestration: null
+    model_registry: null
+    serving: null
+    monitoring: null
+
+artifacts:
+  model:
+    name: null
+    version: null
+
+  transformation:
+    name: null
+    version: null
+
+  feature_definition:
+    version: null
+
+  model_contract:
+    version: null
+
+  relationships:
+    # Ensures compatible artifacts are used together.
+    model_to_transformation: null
+    model_to_feature_definition: null
+
+reproducibility:
+  data_version: null
+  feature_definition_version: null
+  transformation_version: null
+  model_version: null
+  code_version: null
+  configuration_version: null
+  random_seed: null
+
+gates:
+  requirements:
+    status: "pending" # pending | passed | failed
+    unresolved_items: []
+    blocking_reasons: []
+
+  ml_design:
+    status: "pending"
+    unresolved_items: []
+    blocking_reasons: []
+
+  architecture:
+    status: "pending"
+    unresolved_items: []
+    blocking_reasons: []
+
+  platform_mapping:
+    status: "pending"
+    unresolved_items: []
+    blocking_reasons: []
+
+  code_generation:
+    status: "pending"
+    unresolved_items: []
+    blocking_reasons: []
+
+  validation:
+    status: "pending"
+    unresolved_items: []
+    blocking_reasons: []
