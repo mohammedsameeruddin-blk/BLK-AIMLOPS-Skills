@@ -1,351 +1,120 @@
 # BLK AI MLOps Skills
 
-Reusable AI skills for designing and generating standardized ML/MLOps projects.
+Standard way for anyone at Blackstraw to build ML projects — same questions, same rules, same output.
 
-## Objective
+**Goal:** If two people give the same answers, they get almost the same project (about 5–10% difference max).
 
-The goal of this repository is to provide a consistent, AI-driven approach for designing and implementing machine learning solutions.
+---
 
-A user should be able to describe an ML use case in natural language, and the AI should:
+## What this does (today)
 
-1. Understand the ML use case
-2. Gather the required information
-3. Inspect available information such as dataset metadata where possible
-4. Ask only the necessary clarifying questions
-5. Present feasible options when a decision is required
-6. Create a canonical ML project specification
-7. Validate the specification through defined gates
-8. Design the ML/MLOps architecture
-9. Design the required pipelines
-10. Map the design to the target platform
-11. Generate the required implementation
-12. Validate the generated implementation
+1. Understand the ML request (anomaly detection first).
+2. Ask only the missing questions.
+3. Save every answer into one file: `schemas/ml-project.yaml`.
+4. Fail if required fields are missing (do not invent).
+5. Apply **locked rules** for model, metrics, and pipelines.
+6. Later: fill fixed templates (Databricks) — do not invent new pipelines.
 
-The ultimate goal is that different users providing the same requirements should receive a highly consistent architecture, process, and implementation.
+**Not done yet:** full Databricks code generation, regression, classification.
 
-## Core Workflow
+---
 
-The framework follows a gated workflow:
+## Why this exists
+
+Without locks, AI can pick different models and layouts for the same use case.
+
+With locks:
 
 ```text
-User Request
-     |
-     v
-Understand Request
-     |
-     v
-Identify ML Problem
-     |
-     v
-Requirements Discovery
-     |
-     v
-Canonical ML Project Specification
-     |
-     v
-Requirements Gate
-     |
-     v
-ML Design
-     |
-     v
-Pipeline Design
-     |
-     v
-Architecture
-     |
-     v
-Platform Mapping
-     |
-     v
-Implementation Generation
-     |
-     v
-Implementation Validation
-     |
-     v
-Final ML/MLOps Project
+Same answers → same decision table → same template → same project
 ```
 
-The AI should not generate implementation code before the required requirements and design decisions have been completed.
+---
 
-## Canonical ML Project Specification
+## The 5 rules that keep it deterministic
 
-The canonical ML project specification is the single source of truth for the project.
+1. **Lock rules** — e.g. no labels + anomaly → Isolation Forest.
+2. **Save answers** — write into `ml-project.yaml`. Never re-guess from chat.
+3. **Fail if incomplete** — missing data path or inference mode → stop.
+4. **Use templates only** — fill blanks; do not invent pipelines.
+5. **Ask user only for real choices** — batch vs realtime, labels yes/no.
 
-The original user request should not be independently reinterpreted by every downstream skill.
+---
 
-Instead:
+## Simple example
+
+**Ask:** Detect anomalies in fryer temperature. No labels. Score once a day.
+
+**Locked result (both people get this):**
+
+| Decision | Locked value |
+|---|---|
+| Problem | Anomaly detection |
+| Model | Isolation Forest |
+| Metric | Score distribution + precision@k when labels appear later |
+| Serve | Batch (daily) |
+| Spec file | `ml-project.yaml` |
+
+---
+
+## How a run works
 
 ```text
-User Request
-     |
-     v
-Requirements Skill
-     |
-     v
-Canonical Project Specification
-     |
-     +----------+----------+----------+
-     |          |          |          |
-     v          v          v          v
-   Data      Training   Inference  Monitoring
+User request
+    → Ask missing questions (only real choices)
+    → Update ml-project.yaml
+    → Requirements gate (pass / fail)
+    → Apply anomaly decision locks
+    → Design / templates (no free-form inventing)
 ```
 
-Downstream skills should consume and update the canonical specification where appropriate.
+If the gate fails → ask again. Do not generate code.
 
-This approach is intended to improve consistency across users, projects, and AI agents.
+---
 
-## Requirements Discovery
+## Current scope
 
-The AI should gather requirements progressively rather than asking all questions at once.
+| Area | Status |
+|---|---|
+| Anomaly detection | In progress (locked rules) |
+| Classification | Next |
+| Regression | Next |
+| Databricks templates | Next |
+| AWS / Azure adapters | Later |
 
-Questions should:
+---
 
-* Be relevant to the current stage
-* Avoid information that is already known
-* Use available dataset metadata where possible
-* Provide feasible options when meaningful options can be determined
-* Ask for human input when a decision cannot be reliably inferred
-
-The general interaction is:
+## Repo layout
 
 ```text
-Question
-   |
-   v
-User Answer
-   |
-   v
-Update Canonical Specification
-   |
-   v
-Evaluate Completeness
-   |
-   +---- Missing information ----> Ask next question
-   |
-   +---- Complete ---------------> Proceed to Gate
+README.md                 ← start here
+docs/architecture.md      ← deterministic rules and gates
+schemas/ml-project.yaml   ← canonical project specification
+skills/                   ← AI skill playbooks
+  orchestrator/
+  requirements/
+  ml/
+    common/
+    anamoly-detection/    ← anomaly first
 ```
 
-## Gated Workflow
+---
 
-The framework uses explicit gates to control progression.
+## Read next
 
-Initial gates include:
+- [docs/architecture.md](docs/architecture.md) — locked models, metrics, required fields, pass/fail criteria.
 
-### Requirements Gate
+---
 
-Confirms that sufficient information exists to design the ML solution.
+## Consistency target
 
-### Architecture Gate
+Same use case + same answers + same platform → same:
 
-Confirms that the proposed ML/MLOps architecture is complete and consistent with the requirements.
+- problem type
+- model family
+- primary metric
+- inference mode
+- pipeline stages
+- project folder layout
 
-### Implementation Gate
-
-Confirms that the implementation can be generated from the approved specification and architecture.
-
-### Validation Gate
-
-Confirms that the generated implementation satisfies the project specification and required quality checks.
-
-The exact gates may evolve as the framework matures.
-
-## ML Problem Types
-
-The framework is designed to support multiple ML problem types:
-
-* Anomaly Detection
-* Classification
-* Regression
-* Forecasting
-* Clustering
-* Other ML use cases
-
-The first implemented use case is Anomaly Detection.
-
-Each ML problem type should have its own specialized skill while sharing common ML concepts and pipeline capabilities.
-
-## Pipeline Architecture
-
-The framework separates the major ML/MLOps pipeline responsibilities:
-
-```text
-Data Pipeline
-     |
-     +---- Training
-     |
-     +---- Inference
-
-Training Pipeline
-Inference Pipeline
-Retraining Pipeline
-Monitoring Pipeline
-```
-
-The exact pipeline components depend on the requirements.
-
-## Shared Data Transformation
-
-Training and inference must use the same logical data transformation definition.
-
-Training may fit preprocessing transformations and persist the resulting artifacts.
-
-```text
-Training Data
-     |
-     v
-Fit Transformations
-     |
-     v
-Persist Transformation Artifacts
-     |
-     v
-Transform Training Data
-```
-
-Inference must reuse the artifacts produced during training.
-
-```text
-Inference Data
-     |
-     v
-Load Transformation Artifacts
-     |
-     v
-Transform Inference Data
-```
-
-Inference must not fit preprocessing transformations again.
-
-Examples of transformation artifacts include:
-
-* Scalers
-* Encoders
-* Imputers
-* Feature transformers
-* Other learned preprocessing components
-
-## Platform Independence
-
-The core skills are platform-independent.
-
-Skills define:
-
-* What needs to be done
-* Why it needs to be done
-* Required decisions
-* Decision rules
-* Expected inputs and outputs
-* Validation requirements
-
-Platform adapters define:
-
-* How the design is implemented on a specific platform
-* Platform-specific services
-* Platform-specific deployment mechanisms
-* Platform-specific orchestration
-* Platform-specific storage and compute
-
-For example:
-
-```text
-Generic Data Pipeline Skill
-          |
-          v
-Platform Adapter
-     /          \
-Databricks       AWS
-     |             |
-Databricks       AWS
-Implementation   Implementation
-```
-
-The core ML/MLOps reasoning should not depend on Databricks or any other specific platform.
-
-## Consistency
-
-A major objective of the framework is consistency.
-
-For the same:
-
-* Use case
-* Dataset characteristics
-* Business requirements
-* ML requirements
-* MLOps requirements
-* Platform capabilities
-
-the generated architecture and implementation should be highly similar.
-
-Consistency should be achieved through:
-
-* Canonical specifications
-* Explicit decision rules
-* Reusable templates
-* Standardized pipeline structures
-* Defined gates
-* Platform capability mappings
-* Validation rules
-
-The AI should not rely solely on free-form reasoning for decisions that can be standardized.
-
-## Human Decision Points
-
-The AI should make deterministic decisions where established rules are sufficient.
-
-When multiple materially different approaches are feasible and the choice depends on a business or architectural preference, the AI should:
-
-1. Explain the available options
-2. Provide the relevant trade-offs
-3. Ask the user to select or confirm an option
-4. Record the decision in the canonical project specification
-
-The AI should not silently make material decisions that require user input.
-
-## Extensibility
-
-The framework is designed to evolve incrementally.
-
-New ML problem types can be added without redesigning the core workflow.
-
-Examples:
-
-```text
-ML
- |
- +-- Anomaly Detection
- +-- Classification
- +-- Regression
- +-- Forecasting
- +-- Clustering
-```
-
-Similarly, new platforms can be added through platform adapters:
-
-```text
-Platform
- |
- +-- Databricks
- +-- AWS
- +-- Azure
- +-- GCP
- +-- Other platforms
-```
-
-The same core skills should be reusable across these implementations.
-
-## Current Scope
-
-The initial implementation focuses on:
-
-* Skill architecture
-* Requirements gathering
-* Canonical ML project specification
-* ML problem abstraction
-* Anomaly detection
-* Shared data transformation principles
-* Gated workflow
-* Platform-independent architecture
-
-Platform-specific implementation and full code generation will be added incrementally.
+Allowed small differences: table names, thresholds, cluster size, project name.

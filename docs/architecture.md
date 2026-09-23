@@ -1,723 +1,363 @@
-# AI MLOps Skills Architecture
+# AI MLOps Skills Architecture (Deterministic)
 
-## Objective
+## Purpose
 
-The AI MLOps Skills framework converts natural-language ML/MLOps requirements into a standardized, validated, runnable ML/MLOps implementation.
+Turn a natural-language ML request into a **standard, repeatable** project.
 
-The framework is designed to:
+**Consistency target:** same answers → same design and process, with at most ~5–10% difference (names, thresholds, cluster size — not model family or pipeline shape).
 
-* gather requirements before implementation
-* maintain a canonical machine-readable project specification
-* apply standardized ML reasoning
-* generate consistent pipeline architectures
-* separate platform-independent ML design from platform-specific implementation
-* validate generated implementations
-* support multiple ML problem types and deployment platforms
-* minimize unnecessary variation between projects with equivalent requirements
+**Current scope:** Anomaly detection only. Classification and regression come next, using the same pattern.
 
 ---
 
-## Architectural Principles
+## The 5 deterministic rules
 
-### 1. Requirements Before Implementation
+| # | Rule | Meaning |
+|---|---|---|
+| 1 | **Lock rules** | Decision tables choose model, metric, serve mode. No free pick. |
+| 2 | **Save answers** | Every answer goes into `schemas/ml-project.yaml`. Downstream skills read the file, not the chat. |
+| 3 | **Fail if incomplete** | Missing required fields → requirements gate **FAIL**. Stop. Do not invent. |
+| 4 | **Use templates only** | Fill fixed pipeline templates. Do not invent new layouts. |
+| 5 | **Ask only real choices** | Ask the user only when the choice is business-critical (e.g. labels yes/no, batch vs realtime). |
 
-The system must not generate production implementation code until the required project decisions have been collected and validated.
+If a decision can be decided by a rule, the AI must not ask and must not invent.
+
+---
+
+## Simple example (anomaly)
+
+**User:** “Detect anomalies in fryer temperature. No labels. Score once a day.”
+
+| Step | What happens |
+|---|---|
+| Save | Answers written to `ml-project.yaml` |
+| Gate | Required fields checked → PASS |
+| Lock | Unlabeled anomaly → **Isolation Forest** |
+| Metric | Unlabeled → score / expert review protocol |
+| Serve | Daily → **batch** |
+| Output | Same design for any person with the same answers |
+
+**Wrong (non-deterministic):** Person A gets Isolation Forest, Person B gets Autoencoder.
+
+**Right:** Both get Isolation Forest + batch + same pipeline stages.
+
+---
+
+## High-level flow
 
 ```text
 User Request
      |
      v
-Requirements Discovery
+Understand + identify problem (anomaly first)
      |
      v
-Requirements Gate
-     |
-     +---- incomplete ----> Ask Next Question
+Ask only missing REAL choices
      |
      v
-ML / Pipeline Design
+Update schemas/ml-project.yaml
+     |
+     v
+Requirements Gate  ---- FAIL ----> ask again / stop
+     |
+     PASS
+     v
+Apply anomaly LOCK tables (model, metric, serve)
+     |
+     v
+Fill locked pipeline templates
+     |
+     v
+(Platform adapter later — Databricks)
 ```
+
+**Hard stop:** No implementation code until requirements gate PASSES and locks are applied.
 
 ---
 
-### 2. Canonical Specification as the Single Source of Truth
+## Canonical specification (single source of truth)
 
-The Canonical ML Project Specification is the central contract between all skills.
+File: `schemas/ml-project.yaml`
 
-The user request must not be independently reinterpreted by every downstream skill.
+- One project = one spec file.
+- Skills may update owned sections.
+- Skills must **not** create a second competing spec.
+- Skills must **not** re-interpret the original chat once the field is saved.
+
+After each user answer:
+
+1. Write the value into the spec.
+2. Set requirement state: `provided` / `derived` / `confirmed`.
+3. Re-run completeness check.
+
+---
+
+## What to ask the user (anomaly only)
+
+Ask only these **real choices**. Do not ask for model name or metric name — those are locked.
+
+### Required user / derived fields (must be non-null to pass gate)
+
+| Field in spec | Ask user? | Notes |
+|---|---|---|
+| `project.name` | Yes (or derive) | Short project name |
+| `business.objective` | Yes | What decision changes |
+| `project.problem_type` | Derive if clear | Must be `anomaly_detection` |
+| `data.source.location` | Yes | Table / path / URI |
+| `data.source.type` | Yes / derive | table, files, db, etc. |
+| `anomaly_detection.definition.*` | Yes | What is normal vs abnormal + action |
+| `anomaly_detection.entity.columns` | Yes if ambiguous | What entity (machine, line, sensor…) |
+| `anomaly_detection.labels.available` | Yes | **true / false** |
+| `inference.mode` | Yes | **batch / realtime** |
+| `platform.name` | Yes if unknown | e.g. databricks |
+
+### Conditional (required only when triggered)
+
+| If… | Then also require |
+|---|---|
+| `labels.available = true` | `labels.column`, label meaning |
+| `inference.mode = realtime` | `operational_requirements.latency` |
+| `inference.mode = batch` | `inference.frequency` (e.g. daily, hourly) |
+| timestamp matters for context | `data.timestamp.column` |
+
+### Never ask (locked — do not let user/AI free-pick)
+
+- Which algorithm family (use lock table)
+- Which primary metric (use lock table)
+- Whether to invent a new folder layout (use template)
+- Whether inference may fit scalers (always **no**)
+
+---
+
+## Requirements gate (pass / fail)
+
+### PASS only if all are true
+
+1. All required fields above are filled (non-null / non-empty).
+2. All triggered conditional fields are filled.
+3. No unresolved `requirements.conflicts`.
+4. `anomaly_detection.definition` has observation, normal, abnormal, expected_action.
+5. `anomaly_detection.labels.available` is explicitly true or false.
+6. `inference.mode` is `batch` or `realtime`.
+7. `data.source.location` is present.
+
+### FAIL behavior
 
 ```text
-                         +----------------------+
-                         | Canonical ML Project |
-                         | Specification        |
-                         +----------+-----------+
-                                    |
-             +----------------------+----------------------+
-             |                      |                      |
-             v                      v                      v
-       ML Design              Pipeline Design       Platform Mapping
-             |                      |                      |
-             +----------------------+----------------------+
-                                    |
-                                    v
-                             Code Generation
+FAIL
+  → list missing fields in gates.requirements.blocking_reasons
+  → ask the next highest-priority missing question
+  → do NOT apply model locks as final
+  → do NOT generate code or templates
 ```
 
-The canonical specification is maintained throughout the workflow.
-
-Skills may:
-
-* read it
-* add derived information
-* add design decisions
-* validate relevant sections
-* update their owned sections
-
-Skills must not create competing project specifications.
+Soft “looks complete” is not allowed. Gate is binary: **passed | failed**.
 
 ---
 
-## High-Level Workflow
+## Anomaly decision locks
+
+Apply **after** requirements gate PASSES. Write results into `ml_design` and `anomaly_detection` in the spec.
+
+### Lock A — Algorithm
 
 ```text
-User Request
-     |
-     v
-MLOps Orchestrator
-     |
-     v
-Understand Request
-     |
-     v
-Identify ML Problem
-     |
-     v
-Requirements Skill
-     |
-     +------------------------------+
-     |                              |
-     | Requirements incomplete      |
-     |                              |
-     +----------< Ask Question <----+
-     |
-     v
-Canonical ML Project Specification
-     |
-     v
-Requirements Gate
-     |
-     +---- FAIL ----> Requirements Skill
-     |
-     v
-ML Problem Skill
-     |
-     v
-Specialized ML Skill
-     |
-     v
-Pipeline Design
-     |
-     v
-Architecture Design
-     |
-     v
-Platform Adapter
-     |
-     v
-Code Generation
-     |
-     v
-Implementation Validation
-     |
-     +---- FAIL ----> Relevant Design Stage
-     |
-     v
-Final ML/MLOps Project
+labels.available == true
+    AND labels are reliable (user confirmed)
+        → selected_algorithm = LightGBM (binary classification)
+        → learning_paradigm = supervised
+
+labels.available == false
+        → selected_algorithm = IsolationForest
+        → learning_paradigm = unsupervised
+
+(Do not select LOF / One-Class SVM / Autoencoder as default.)
 ```
 
----
+**Allowed variance later (optional fallback only if Isolation Forest cannot run):**
 
-# Component Responsibilities
+- Fallback documented in spec `assumptions` + user confirm.
+- Default path must still prefer Isolation Forest.
 
-## MLOps Orchestrator
-
-The orchestrator is the control layer.
-
-It is responsible for:
-
-* understanding the user's request
-* selecting the appropriate skills
-* controlling workflow progression
-* maintaining stage order
-* invoking requirements gathering
-* enforcing gates
-* routing to ML problem skills
-* coordinating pipeline and architecture design
-* selecting the platform adapter
-* invoking code generation
-* coordinating validation and recovery
-
-The orchestrator should not contain detailed algorithm-selection logic or platform-specific implementation logic.
-
----
-
-## Requirements Skill
-
-The Requirements Skill converts natural language into structured project requirements.
-
-It is responsible for:
-
-* identifying missing requirements
-* inspecting available dataset/schema information
-* deriving information where possible
-* asking only necessary questions
-* generating context-aware options
-* tracking requirement state
-* detecting conflicting requirements
-* updating the canonical specification
-* determining when requirements are complete
-
-The requirements interaction is iterative:
+### Lock B — Primary metric
 
 ```text
-Read Canonical Spec
-       |
-       v
-Find unresolved requirements
-       |
-       v
-Can requirement be derived?
-   /             \
- Yes              No
-  |                |
-  v                v
-Derive          Ask User
-  |                |
-  +-------+--------+
-          |
-          v
-Update Canonical Spec
-          |
-          v
-Evaluate Completeness
-          |
-    +-----+------+
-    |            |
- Complete      Incomplete
-    |            |
-    v            +----> Next Question
-Requirements Gate
+supervised (labels = true)
+    → primary metric = pr_auc
+    → also report: precision, recall, f1
+    → do NOT optimize accuracy alone (imbalance)
+
+unsupervised (labels = false)
+    → primary metric = precision_at_k  (when any known incidents exist)
+    → else: expert_review_hit_rate + score_stability
+    → always log: anomaly score distribution
+```
+
+### Lock C — Inference mode defaults
+
+```text
+User said daily / hourly / scheduled
+    → inference.mode = batch
+
+User said API / milliseconds / interactive app
+    → inference.mode = realtime
+
+If unclear → ASK (batch vs realtime). Do not guess.
+```
+
+### Lock D — Threshold
+
+```text
+supervised → threshold from validation (F1 or business cost if provided)
+unsupervised → quantile threshold from training scores
+               default contamination / expected rate from
+               anomaly_detection.expected_anomaly_frequency
+               if missing → ASK once, else default 0.01
+```
+
+### Lock E — Pipeline stages (fixed order)
+
+Every anomaly project uses the same stages. Do not add/remove without a recorded exception.
+
+```text
+1. ingest
+2. validate_schema_and_quality
+3. features
+4. fit_transforms_on_train_only
+5. train
+6. evaluate
+7. register_model_and_transforms
+8. infer (batch job or serving)
+9. monitor (optional flag, but stage exists in template)
+```
+
+### Lock F — Train / infer transform rule
+
+```text
+Training: fit transforms → persist artifact → transform → train
+Inference: load artifact → transform → predict
+Inference: fit_allowed = false   (always)
 ```
 
 ---
 
-## ML Problem Skill
+## Fulfillment criteria (same results for everyone)
 
-The ML Skill determines the appropriate machine-learning approach from the canonical specification.
+Two runs are considered **consistent** if they match on all of the following when inputs match:
 
-It is responsible for:
+| Must match | May differ slightly |
+|---|---|
+| `problem_type` | `project.name` |
+| `selected_algorithm.name` | Exact threshold value |
+| Primary metric | Cluster / compute size |
+| `inference.mode` | Catalog / table path strings |
+| Pipeline stage list and order | Column display names |
+| Transform fit rule (`fit_allowed=false` on infer) | |
+| Spec sections filled | |
 
-* confirming the ML problem type
-* selecting the learning paradigm
-* evaluating data characteristics
-* identifying candidate algorithms
-* evaluating algorithm feasibility
-* defining training strategy
-* defining validation strategy
-* defining evaluation metrics
-* defining threshold strategy where applicable
-* defining model artifacts and inference requirements
-
-The ML Skill determines the logical ML design.
-
-It does not implement platform-specific infrastructure.
+**Target:** ≤ ~10% difference, only in the “may differ” column.
 
 ---
 
-## Specialized ML Skills
+## Locked pipeline template shape (anomaly)
 
-Specialized skills contain problem-specific reasoning.
-
-Initial and planned problem types include:
+Do not invent a different layout. Fill this skeleton (platform adapter fills paths later):
 
 ```text
-Anomaly Detection
-Classification
-Regression
-Forecasting
-Clustering
-Future ML Problem Types
+01_intake/       answers + charter from ml-project.yaml
+02_data/         load + quality checks
+03_features/     feature contract
+04_train/        IsolationForest or LightGBM (from lock)
+05_evaluate/     locked metrics + pass/fail vs baseline
+06_register/     model + transformation versions
+07_infer/        batch and/or realtime (from lock)
+08_monitor/      drift / score / volume
+09_ops/          job schedule / triggers
 ```
 
-For example:
-
-```text
-ML Skill
-   |
-   +---- Anomaly Detection Skill
-   |
-   +---- Classification Skill
-   |
-   +---- Regression Skill
-   |
-   +---- Forecasting Skill
-   |
-   +---- Clustering Skill
-```
-
-Specialized skills extend the common ML rules and must not contradict them.
+Code generation (when added) must copy this template and substitute values from the spec only.
 
 ---
 
-# Pipeline Architecture
+## Gates summary
 
-The framework treats the ML system as a set of logically connected pipelines.
+| Gate | Pass when |
+|---|---|
+| **Requirements** | Required + conditional fields filled; no conflicts |
+| **ML design** | Locks A–D applied and written to spec |
+| **Architecture** | Pipeline stages = Lock E; transform rule = Lock F |
+| **Implementation** (later) | Generated from templates only; matches spec |
+| **Validation** (later) | Checks pass against spec |
 
-```text
-                    +----------------+
-                    | Data Pipeline  |
-                    +-------+--------+
-                            |
-             +--------------+--------------+
-             |                             |
-             v                             v
-      +-------------+               +-------------+
-      | Training    |               | Inference   |
-      | Pipeline    |               | Pipeline    |
-      +------+------+               +------+------+
-             |                             |
-             v                             v
-        Model Artifact               Predictions
-             |
-             v
-      Transformation
-         Artifact
-             |
-             v
-       Model Contract
-```
-
-## Data Pipeline
-
-The data pipeline is responsible for:
-
-* ingestion
-* schema validation
-* data-quality checks
-* cleaning
-* preprocessing
-* feature engineering
-* producing the feature contract consumed by training and inference
-
-The logical transformation definition should be shared between training and inference.
+Failed gate → return to owning stage. No silent bypass.
 
 ---
 
-## Training Pipeline
+## Human decision points only
 
-The training pipeline:
+Ask the user when:
 
-1. reads training data
-2. fits learned transformations using training data only
-3. persists transformation artifacts
-4. transforms training/validation/test data using those fitted transformations
-5. trains the model
-6. evaluates the model
-7. persists the model and associated metadata
+1. Labels exist or not.
+2. Batch vs realtime.
+3. Entity / anomaly business definition is ambiguous.
+4. Multiple entity columns are plausible.
+5. A fallback away from the locked default model is requested.
 
-Conceptually:
+Do **not** ask:
+
+- “Which model do you prefer?” (use Lock A)
+- “Which metric?” (use Lock B)
+- “How should we structure folders?” (use template)
+
+---
+
+## Out of scope for this version
+
+- Classification and regression locks (next)
+- Full Databricks / AWS code generation
+- Auto-picking exotic deep models by default
+
+---
+
+## Extensibility (later)
+
+Same pattern for new problem types:
+
+1. Add required fields for that problem.
+2. Add Lock A/B tables for that problem.
+3. Reuse same gates, spec file, and template stages.
 
 ```text
-Training Data
-     |
-     v
-Fit Transformations
-     |
-     +----> Transformation Artifact
-     |
-     v
-Transform Data
-     |
-     v
-Train Model
-     |
-     +----> Model Artifact
-     |
-     v
-Evaluate
+anomaly_detection   ← current
+classification      ← next
+regression          ← next
 ```
 
 ---
 
-## Inference Pipeline
+## Responsibility boundary
 
-The inference pipeline must reuse the artifacts produced by training.
-
-```text
-New Input
-    |
-    v
-Schema Validation
-    |
-    v
-Load Transformation Artifact
-    |
-    v
-Transform
-    |
-    v
-Load Compatible Model Artifact
-    |
-    v
-Predict
-    |
-    v
-Output
-```
-
-### Critical Invariant
-
-Inference must **never fit learned preprocessing transformations**.
-
-For example, inference must not independently fit:
-
-* scalers
-* encoders
-* imputers
-* feature transformers
-
-Instead, it loads the transformation artifact produced by the appropriate training run.
+| Layer | Does | Does not |
+|---|---|---|
+| Orchestrator | Order, gates, routing | Pick algorithms |
+| Requirements | Ask real choices, update spec | Generate code |
+| Anomaly skill | Apply Lock A–D | Invent models outside table |
+| Templates / platform (later) | Fill locked skeleton | Redesign pipeline |
 
 ---
 
-## Retraining Pipeline
+## Bottom line
 
-Retraining is optional and is driven by configured triggers.
+Determinism is not “smarter AI.”
 
-Possible triggers include:
-
-* schedule
-* data drift
-* model drift
-* performance degradation
-* business-defined threshold
-* new labeled data
-
-Retraining must pass the same model validation requirements before a new model version becomes available for inference.
-
----
-
-# Artifact Consistency
-
-Model artifacts and transformation artifacts are treated as related versioned assets.
-
-A valid model deployment must maintain compatibility between:
+It is:
 
 ```text
-Model Version
-     |
-     +---- Transformation Version
-     |
-     +---- Feature Definition Version
-     |
-     +---- Training Configuration
-     |
-     +---- Data Version
-     |
-     +---- Code Version
+Locked questions
+  + ml-project.yaml
+  + pass/fail gate
+  + locked model/metric/serve tables
+  + fixed templates
 ```
 
-The system should prevent incompatible combinations such as:
-
-```text
-Model v2
-+
-Transformation v1
-+
-Feature Definition v3
-```
-
-unless that compatibility has explicitly been established.
-
----
-
-# Platform Independence
-
-The core skills are platform-independent.
-
-They define:
-
-* requirements
-* ML reasoning
-* pipeline contracts
-* architecture
-* validation requirements
-* logical artifacts
-* logical platform capabilities
-
-They should not directly encode implementation details for a specific platform.
-
-```text
-                  Core Skills
-                      |
-                      v
-              Logical Architecture
-                      |
-        +-------------+-------------+
-        |             |             |
-        v             v             v
- Databricks        AWS           Azure/GCP
- Adapter           Adapter        Adapter
-        |             |             |
-        v             v             v
- Platform-specific implementation
-```
-
-Platform adapters translate the logical design into platform-specific constructs.
-
-For example, the core architecture may require:
-
-```text
-Model Registry
-Batch Inference
-Workflow Orchestration
-Artifact Storage
-Monitoring
-```
-
-The platform adapter determines how those capabilities are implemented on the target platform.
-
----
-
-# Code Generation
-
-Code generation occurs only after:
-
-1. requirements are complete
-2. ML design is complete
-3. pipeline architecture is defined
-4. platform mapping is available
-5. required gates have passed
-
-Code generation consumes the canonical specification and design outputs.
-
-It should not independently reinterpret the original user request.
-
----
-
-# Validation
-
-Validation occurs at multiple levels.
-
-## Requirements Validation
-
-Checks:
-
-* required fields are populated
-* conditional requirements are resolved
-* conflicts are resolved
-* user decisions are confirmed
-* required dependencies are satisfied
-
-## ML Design Validation
-
-Checks:
-
-* selected algorithm is compatible with the problem
-* required data characteristics are available
-* training strategy is defined
-* validation strategy is defined
-* metrics are appropriate
-* threshold strategy is defined where required
-
-## Pipeline Validation
-
-Checks:
-
-* training and inference contracts are compatible
-* transformations are consistent
-* inference does not fit preprocessing
-* required artifacts are persisted
-* model/artifact versions are compatible
-
-## Implementation Validation
-
-Checks:
-
-* generated project structure is complete
-* generated code follows the canonical specification
-* configuration is internally consistent
-* pipeline dependencies are valid
-* tests/checks pass
-* platform-specific implementation matches the platform mapping
-
-Validation failures should route the workflow back to the stage responsible for the failed decision rather than blindly regenerating the entire project.
-
----
-
-# Gates
-
-Gates control progression between major stages.
-
-```text
-Requirements Gate
-       |
-       v
-ML Design Gate
-       |
-       v
-Architecture Gate
-       |
-       v
-Platform Mapping Gate
-       |
-       v
-Code Generation Gate
-       |
-       v
-Validation Gate
-```
-
-A failed gate must identify:
-
-* unresolved requirement/design
-* blocking reason
-* owning stage
-* required correction
-
-The workflow should not silently bypass a failed gate.
-
----
-
-# Standardization and Consistency
-
-The framework aims to produce highly consistent implementations when requirements are equivalent.
-
-Consistency is achieved through:
-
-* canonical project specifications
-* explicit requirement states
-* deterministic decision rules
-* reusable ML design patterns
-* standardized pipeline structures
-* platform adapters
-* reusable code-generation templates
-* validation gates
-* artifact contracts
-* explicit assumptions and user decisions
-
-The goal is not to eliminate all variation.
-
-Variation should primarily result from genuine differences in:
-
-* requirements
-* data characteristics
-* ML problem
-* operational constraints
-* platform capabilities
-* explicit user decisions
-
-The same requirements should therefore lead to substantially similar architecture and implementation.
-
----
-
-# Extensibility
-
-The architecture is designed to support two independent dimensions of expansion.
-
-## New ML Problem
-
-Add:
-
-```text
-skills/ml/<problem-type>/SKILL.md
-```
-
-The new skill should implement the common ML contract and define problem-specific reasoning.
-
-Example:
-
-```text
-skills/ml/
-├── common/
-├── anomaly-detection/
-├── classification/
-├── regression/
-├── forecasting/
-└── clustering/
-```
-
-## New Platform
-
-Add a platform adapter without changing the core ML reasoning.
-
-Example:
-
-```text
-platforms/
-├── databricks/
-├── aws/
-├── azure/
-└── gcp/
-```
-
-This allows the same logical ML design to be mapped to different execution environments.
-
----
-
-# Architectural Boundary
-
-The intended responsibility boundary is:
-
-```text
-+------------------------------------------------------+
-|                    ORCHESTRATOR                      |
-| Workflow control, routing, gates                     |
-+------------------------------------------------------+
-                         |
-+------------------------------------------------------+
-|                  REQUIREMENTS                        |
-| Understand, derive, ask, confirm                     |
-+------------------------------------------------------+
-                         |
-+------------------------------------------------------+
-|               CANONICAL SPECIFICATION                |
-| Single source of truth                               |
-+------------------------------------------------------+
-                         |
-+------------------------------------------------------+
-|                    ML SKILLS                         |
-| ML reasoning and problem-specific design             |
-+------------------------------------------------------+
-                         |
-+------------------------------------------------------+
-|                  PIPELINE DESIGN                     |
-| Data / Training / Inference / Retraining             |
-+------------------------------------------------------+
-                         |
-+------------------------------------------------------+
-|                 PLATFORM ADAPTER                     |
-| Platform-specific implementation mapping             |
-+------------------------------------------------------+
-                         |
-+------------------------------------------------------+
-|                 CODE GENERATION                      |
-| Runnable project implementation                      |
-+------------------------------------------------------+
-                         |
-+------------------------------------------------------+
-|                    VALIDATION                        |
-| Requirements / ML / Pipeline / Implementation        |
-+------------------------------------------------------+
-```
-
-Each layer should have a clear contract with the next layer.
-
-The framework should avoid placing business logic, ML algorithm logic, or platform-specific implementation inside the orchestrator.
-
-```
-
-This architecture now matches the schemas and skills we've established rather than merely documenting the happy-path flow.
-
-**With this file, the initial eight-file architecture is internally coherent.** The next useful step is the **cross-file consistency review**—checking all eight files together for contradictions, duplicated responsibilities, missing references, and whether an agent could actually execute the workflow end-to-end.
-```
+Same answers → same anomaly project.
