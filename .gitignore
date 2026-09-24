@@ -1,0 +1,13 @@
+# Data & large artifacts
+*.csv
+*.pkl
+*.joblib
+artifacts/
+**/artifacts/*.pkl
+**/artifacts/*.joblib
+**/__pycache__/
+*.pyc
+.DS_Store
+.venv/
+venv/
+.env

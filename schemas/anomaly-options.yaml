@@ -1,0 +1,121 @@
+models:
+  - {id: isolation_forest, label: Isolation Forest, needs_labels: false, recommended_when: unlabeled_tabular}
+  - {id: one_class_svm, label: One-Class Support Vector Machine (SVM), needs_labels: false}
+  - {id: lof, label: Local Outlier Factor (LOF), needs_labels: false}
+  - {id: autoencoder, label: Autoencoder, needs_labels: false}
+  - {id: cnn, label: CNN, needs_labels: false}
+  - {id: lstm, label: LSTM, needs_labels: false}
+  - {id: lightgbm, label: LightGBM, needs_labels: true, recommended_when: labeled_tabular}
+
+metrics:
+  - {id: precision, label: Precision, needs_labels: true}
+  - {id: recall, label: Recall, needs_labels: true}
+  - {id: f1, label: F1 score, needs_labels: true}
+  - {id: pr_auc, label: PR-AUC, needs_labels: true, recommended_when: labeled}
+  - {id: roc_auc, label: ROC-AUC, needs_labels: true}
+  - {id: precision_at_k, label: Precision@K, needs_labels: partial, recommended_when: unlabeled_with_known_cases}
+  - {id: expert_review_hit_rate, label: Expert review hit rate, needs_labels: false}
+  - {id: score_stability, label: Score stability, needs_labels: false}
+  - {id: anomaly_score_distribution, label: Anomaly score distribution, needs_labels: false}
+  - {id: false_positive_rate, label: False positive rate, needs_labels: true}
+  - {id: alert_volume, label: Alert volume per day, needs_labels: false}
+
+data_sources:
+  - {id: csv_parquet, label: CSV / Parquet files}
+  - {id: databricks_table, label: Databricks table}
+  - {id: database, label: Database (SQL)}
+  - {id: cloud_object_storage, label: Cloud object storage}
+  - {id: streaming, label: Streaming source}
+  - {id: other, label: Other}
+
+labels:
+  - {id: "true", label: Reliable labels available}
+  - {id: "false", label: No reliable labels}
+  - {id: partial, label: Weak / delayed / sparse labels}
+
+anomaly_types:
+  - {id: point, label: Point anomaly}
+  - {id: contextual, label: Contextual anomaly}
+  - {id: collective, label: Collective anomaly}
+
+entity_grains:
+  - {id: transaction, label: Transaction / event}
+  - {id: customer, label: Customer / account}
+  - {id: device, label: Device / machine}
+  - {id: merchant, label: Merchant / location}
+  - {id: session, label: Session / journey}
+  - {id: other, label: Other}
+
+inference_modes:
+  - {id: batch, label: Batch}
+  - {id: near_realtime, label: Near real-time}
+  - {id: realtime, label: Realtime / online API}
+
+inference_frequencies:
+  - {id: hourly, label: Hourly}
+  - {id: daily, label: Daily}
+  - {id: weekly, label: Weekly}
+  - {id: on_demand, label: On demand}
+  - {id: continuous, label: Continuous}
+
+threshold_strategies:
+  - {id: quantile, label: Quantile of scores}
+  - {id: contamination, label: Contamination rate}
+  - {id: f1_optimal, label: F1-optimal threshold}
+  - {id: business_cost, label: Business cost-based}
+  - {id: fixed, label: Fixed cutoff}
+  - {id: top_k, label: Top-K alerts}
+
+split_strategies:
+  - {id: random, label: Random split}
+  - {id: temporal, label: Time-based split}
+  - {id: entity, label: Entity holdout}
+  - {id: none_unsupervised, label: No classic split}
+
+feature_strategies:
+  - {id: raw, label: Raw columns only}
+  - {id: aggregated, label: Aggregates}
+  - {id: rolling_window, label: Rolling windows}
+  - {id: entity_relative, label: Entity-relative history}
+  - {id: sequence, label: Sequence windows}
+  - {id: mixed, label: Mixed raw + derived}
+
+explainability:
+  - {id: none, label: Not required}
+  - {id: top_features, label: Top contributing features}
+  - {id: shap, label: SHAP}
+  - {id: rule_overlay, label: Rules + model score}
+
+actions_on_alert:
+  - {id: review_queue, label: Human review queue}
+  - {id: auto_block, label: Auto-block / decline}
+  - {id: notify_only, label: Notify only}
+  - {id: score_only, label: Score to table only}
+  - {id: step_up_auth, label: Step-up authentication}
+
+monitoring_levels:
+  - {id: basic, label: Data quality + score distribution}
+  - {id: drift, label: + Drift}
+  - {id: performance, label: + Performance with labels}
+  - {id: full, label: Full MLOps monitoring}
+
+retraining_triggers:
+  - {id: manual, label: Manual only}
+  - {id: schedule, label: Fixed schedule}
+  - {id: drift, label: On drift}
+  - {id: performance_drop, label: On metric drop}
+  - {id: new_labels, label: When new labels arrive}
+
+platforms:
+  - {id: local, label: Local Python}
+  - {id: databricks, label: Databricks}
+  - {id: aws, label: AWS}
+  - {id: azure, label: Azure}
+  - {id: gcp, label: GCP}
+
+expected_anomaly_rates:
+  - {id: "0.001", label: "~0.1%"}
+  - {id: "0.01", label: "~1%"}
+  - {id: "0.05", label: "~5%"}
+  - {id: "0.10", label: "~10%"}
+  - {id: custom, label: Custom}

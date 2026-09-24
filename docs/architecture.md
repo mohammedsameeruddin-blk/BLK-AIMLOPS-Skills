@@ -120,12 +120,12 @@ Ask only these **real choices**. Do not ask for model name or metric name — th
 | `inference.mode = batch` | `inference.frequency` (e.g. daily, hourly) |
 | timestamp matters for context | `data.timestamp.column` |
 
-### Never ask (locked — do not let user/AI free-pick)
+### Ask as fixed menus (do not free-pick outside the list)
 
-- Which algorithm family (use lock table)
-- Which primary metric (use lock table)
-- Whether to invent a new folder layout (use template)
-- Whether inference may fit scalers (always **no**)
+- Algorithm → show **model menu** (recommended default marked)
+- Primary metric → show **metric menu** (recommended default marked)
+- Folder layout → fixed template only (no inventing)
+- Inference transform fit → always **no** (`fit_allowed: false`)
 
 ---
 
@@ -155,43 +155,60 @@ Soft “looks complete” is not allowed. Gate is binary: **passed | failed**.
 
 ---
 
-## Anomaly decision locks
+## Anomaly decision locks (fixed menus + recommended defaults)
 
-Apply **after** requirements gate PASSES. Write results into `ml_design` and `anomaly_detection` in the spec.
+Apply **after** requirements gate PASSES.  
+**Show the user a fixed option menu** for model and metrics. Do not invent options.
+Recommended defaults keep projects consistent; user choice is saved in the spec.
 
-### Lock A — Algorithm
+Full menus live in `skills/ml/anamoly-detection/options.md`.
+
+### Lock A — Algorithm menu
+
+Offer only:
+
+`isolation_forest` | `one_class_svm` | `lof` | `autoencoder` | `cnn` | `lstm` | `lightgbm`
+
+```text
+labels.available == true (reliable)
+    → recommend lightgbm
+    → still show full menu; save user pick
+
+labels.available == false + tabular
+    → recommend isolation_forest
+
+labels.available == false + sequence/time series
+    → recommend lstm
+
+labels.available == false + image/grid
+    → recommend cnn
+```
+
+User must confirm or pick another **menu id**. Record in `ml_design.selected_algorithm`.
+
+### Lock B — Metric menu
+
+Offer only:
+
+`precision` | `recall` | `f1` | `pr_auc` | `roc_auc` | `precision_at_k` |
+`expert_review_hit_rate` | `score_stability` | `anomaly_score_distribution`
 
 ```text
 labels.available == true
-    AND labels are reliable (user confirmed)
-        → selected_algorithm = LightGBM (binary classification)
-        → learning_paradigm = supervised
+    → recommend primary: pr_auc
+    → also offer: precision, recall, f1, roc_auc
 
-labels.available == false
-        → selected_algorithm = IsolationForest
-        → learning_paradigm = unsupervised
+labels.available == false + known incidents
+    → recommend primary: precision_at_k
 
-(Do not select LOF / One-Class SVM / Autoencoder as default.)
+labels.available == false + no labels at all
+    → recommend primary: expert_review_hit_rate
+    → also require: score_stability (+ log score distribution)
+
+Never optimize accuracy alone for anomaly/fraud.
 ```
 
-**Allowed variance later (optional fallback only if Isolation Forest cannot run):**
-
-- Fallback documented in spec `assumptions` + user confirm.
-- Default path must still prefer Isolation Forest.
-
-### Lock B — Primary metric
-
-```text
-supervised (labels = true)
-    → primary metric = pr_auc
-    → also report: precision, recall, f1
-    → do NOT optimize accuracy alone (imbalance)
-
-unsupervised (labels = false)
-    → primary metric = precision_at_k  (when any known incidents exist)
-    → else: expert_review_hit_rate + score_stability
-    → always log: anomaly score distribution
-```
+User picks **one primary** (optional secondaries). Save to `ml_design.validation_strategy`.
 
 ### Lock C — Inference mode defaults
 

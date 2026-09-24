@@ -1,0 +1,63 @@
+project:
+  name: credit-card-anomaly-detection
+  version: "1.0"
+
+data:
+  source:
+    type: csv
+    path: creditcard_data.csv
+  entity: transaction
+  features:
+    numeric: [Time, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10,
+              V11, V12, V13, V14, V15, V16, V17, V18, V19, V20,
+              V21, V22, V23, V24, V25, V26, V27, V28, Amount]
+    target: Class
+
+anomaly_detection:
+  anomaly_type: point
+  entity: transaction
+  labels:
+    available: true
+    column: Class
+    fraud_value: 1
+  expected_anomaly_frequency: 0.00173  # 492 / 284806
+
+inference:
+  mode: batch
+  frequency: on_demand
+
+ml_design:
+  selected_algorithm:
+    name: lof
+    selection_reason: user_selected
+  validation_strategy:
+    metrics:
+      - f1
+      - precision
+      - recall
+      - pr_auc
+      - roc_auc
+    primary_metric: f1
+  threshold_strategy:
+    method: f1_maximization
+    fit_on: validation_set
+  training_strategy:
+    split_strategy: stratified
+    test_size: 0.2
+    random_state: 42
+  feature_strategy:
+    scale: [Time, Amount]  # V1-V28 are already PCA-transformed
+  explainability:
+    strategy: score_based
+
+requirements:
+  user_decisions:
+    - id: inference_mode
+      value: batch
+      source: user
+    - id: model
+      value: lof
+      source: user
+    - id: primary_metric
+      value: f1
+      source: user

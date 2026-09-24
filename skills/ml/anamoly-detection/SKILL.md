@@ -1,518 +1,281 @@
+---
+name: anomaly-detection
+description: >-
+  Interactive anomaly detection skill. Collects all user requirements via
+  progressive menus, writes ml-project.yaml, then asks the user whether to
+  run training. Use when the problem is anomaly detection, fraud, outlier,
+  or suspicious event detection.
+---
+
 # Anomaly Detection Skill
 
 ## Purpose
 
-Design an anomaly detection solution based on the canonical project specification, business definition, data characteristics, and operational requirements.
+Guide the user through every required decision, write their answers into
+`template/anomaly-detection/ml-project.yaml`, then offer to run training.
 
-This skill provides anomaly-detection-specific reasoning and design decisions.
+**Important rules:**
+- Show menus from [options.md](options.md) — do not invent options.
+- Ask **one menu at a time** in the order below.
+- Mark the recommended option on every menu.
+- Save each answer into `ml-project.yaml` before asking the next question.
+- After all required questions are answered, print a summary and ask:
+  **"Ready to train? (yes / no)"**
+- If yes → run `python src/train.py` from `template/anomaly-detection/`.
+- If no → tell the user to edit `ml-project.yaml` and run manually.
 
-It does not generate platform-specific implementation code.
+---
 
-## Inputs and Outputs
+## Step-by-step flow
 
-### Input
+### Phase 0 — Create the project folder (always first)
 
-The primary input is the canonical ML project specification.
-
-The skill should use:
-
-* Business objective
-* Dataset information
-* Entity definition
-* Timestamp information
-* Feature definitions
-* Label availability
-* Inference requirements
-* Business action
-* Operational constraints
-
-### Output
-
-The skill should produce an anomaly detection design containing, as applicable:
-
-```text id="v09bq1"
-Anomaly Detection Design
-├── anomaly_definition
-├── observation_definition
-├── entity_definition
-├── anomaly_type
-├── temporal_context
-├── label_strategy
-├── feature_strategy
-├── candidate_algorithms
-├── selected_algorithm
-├── training_strategy
-├── validation_strategy
-├── threshold_strategy
-├── inference_output
-└── explanation_strategy
+**Ask:**
+```
+What would you like to call this project? (e.g. credit-card-fraud, sensor-anomaly)
 ```
 
-The resulting decisions should be recorded in or reflected by the canonical project specification.
-
-## Problem Definition
-
-Anomaly detection identifies observations or patterns that differ materially from expected behavior.
-
-The definition of an anomaly must be specific to the business context.
-
-Before selecting an algorithm, determine:
-
-* What constitutes an observation
-* What entity is being analyzed
-* What constitutes abnormal behavior
-* What normal behavior means
-* What baseline is used
-* Whether context changes the definition of normal
-* Whether the anomaly is a point, contextual, or collective event
-* What business action follows detection
-
-The skill should not treat "unusual" as a sufficient anomaly definition.
-
-## Anomaly Definition
-
-The anomaly definition should answer:
-
-```text id="1x2qk4"
-What is being observed?
-        +
-Who or what does it belong to?
-        +
-What is considered normal?
-        +
-What makes it abnormal?
-        +
-Over what context or time period?
-        +
-What action should occur?
+Once the user gives a name, run:
+```bash
+python new_project.py --name <project-name>
 ```
 
-Example:
+This creates `projects/<project-name>/` as a clean copy of the template.
+All subsequent config writes and training commands use **that folder**, not the template.
 
-```text id="lq9j4p"
-Observation:
-Individual customer transaction
-
-Entity:
-Customer
-
-Normal behavior:
-Customer's historical transaction behavior
-
-Anomaly:
-Transaction materially deviates from the customer's expected behavior
-
-Action:
-Send transaction for review
+Confirm to the user:
+```
+Created: projects/<project-name>/
+I'll collect your requirements and fill in ml-project.yaml there.
 ```
 
-## Anomaly Types
+---
 
-Determine whether the use case is primarily:
+### Phase 1 — Data & context (ask in order, skip if already known)
 
-### Point Anomaly
+| Step | Question | Config field written |
+|---|---|---|
+| 1 | Data source type? | `data.source_type` |
+| 2 | Path to your CSV / table? | `data.path` |
+| 3 | Which column is the label (0 = normal, 1 = anomaly)? | `data.target_column` |
+| 4 | What value means "anomaly" in that column? (default: 1) | `data.anomaly_value` |
+| 5 | Anomaly labels available? (true / false / partial) | `anomaly_detection.labels.available` |
+| 6 | Anomaly type? (point / contextual / collective) | `anomaly_detection.anomaly_type` |
+| 7 | Entity grain — what are we flagging? | `anomaly_detection.entity` |
+| 8 | Expected anomaly rate? | `anomaly_detection.expected_anomaly_frequency` |
 
-An individual observation is anomalous relative to the expected distribution.
+### Phase 2 — ML design
 
-Example:
+| Step | Question | Config field written |
+|---|---|---|
+| 9  | Inference mode? (batch / near_realtime / realtime) | `inference.mode` |
+| 10 | Inference frequency? (skip if realtime) | `inference.frequency` |
+| 11 | Model? (show menu from options.md §7) | `ml_design.selected_algorithm.name` |
+| 12 | Primary metric? (show menu from options.md §8) | `ml_design.validation_strategy.primary_metric` |
+| 13 | Secondary metrics? (optional, multi-select) | `ml_design.validation_strategy.secondary_metrics` |
+| 14 | Threshold strategy? | `ml_design.threshold_strategy.method` |
+| 15 | Train/val split strategy? | `ml_design.training_strategy.split_strategy` |
+| 16 | Feature strategy? | `ml_design.feature_strategy` |
+| 17 | Explainability? | `ml_design.explainability.strategy` |
 
-A transaction with an unusually large amount.
+### Phase 3 — Operations (ask only if user wants to go further)
 
-### Contextual Anomaly
+| Step | Question | Config field written |
+|---|---|---|
+| 18 | Action on alert? | `business.action_on_alert` |
+| 19 | Monitoring level? | `monitoring.level` |
+| 20 | Retraining trigger? | `retraining.trigger.type` |
+| 21 | Platform? | `platform.name` |
 
-An observation is anomalous given its context.
+> Phases 1 and 2 are **required** before training.
+> Phase 3 is optional — ask: *"Do you want to configure operations settings
+> (monitoring, retraining, platform)? Or skip to training?"*
 
-Context may include:
+---
 
-* Entity
-* Time
-* Location
-* Season
-* User behavior
-* Historical behavior
-* Other contextual variables
+## How to ask each menu (required format)
 
-Example:
+```
+<Question text>
 
-A transaction amount may be normal across the population but unusual for a specific customer.
+1. <id> — <label>  (recommended)
+2. <id> — <label>
+3. <id> — <label>
+...
 
-Contextual anomalies may require derived historical or temporal features.
-
-### Collective Anomaly
-
-A group or sequence of observations is anomalous even when individual observations may not be anomalous independently.
-
-Example:
-
-A sequence of transactions indicates unusual behavior.
-
-Collective anomalies may require:
-
-* Sequence information
-* Windowed features
-* Aggregations
-* Event ordering
-* Temporal modeling
-
-## Decision Flow
-
-The anomaly detection design should follow this process:
-
-```text id="xjgj4m"
-Business Definition
-        |
-        v
-Observation + Entity
-        |
-        v
-Temporal / Contextual Requirements
-        |
-        v
-Label Assessment
-        |
-        v
-Anomaly Type
-        |
-        v
-Feature Characteristics
-        |
-        v
-Candidate Algorithms
-        |
-        v
-Feasibility Evaluation
-        |
-        v
-Training Strategy
-        |
-        v
-Validation Strategy
-        |
-        v
-Threshold Strategy
-        |
-        v
-Inference Output
+Reply with the number, the ID, or "use recommended".
 ```
 
-## Required Information
+One menu per message. Wait for the answer before asking the next.
 
-Before finalizing the anomaly detection design, determine the information required by the selected approach.
+---
 
-Common requirements include:
+## After all required questions are answered
 
-* Anomaly definition
-* Observation definition
-* Entity being analyzed
-* Timestamp, if applicable
-* Available features
-* Feature availability at inference time
-* Whether anomaly labels exist
-* Label quality and coverage where applicable
-* Expected anomaly frequency
-* Batch or real-time inference
-* Expected output
-* Business action after detecting an anomaly
+1. Print a **Configuration Summary** table:
 
-Additional requirements should be introduced when triggered by the use case.
+```
+=== Your Anomaly Detection Configuration ===
 
-## Entity Definition
-
-Determine the entity to which anomalies should be associated.
-
-Examples:
-
-* Customer
-* Transaction
-* Device
-* Account
-* Machine
-* Location
-* Other business entity
-
-If multiple candidate entity columns exist, do not silently choose one when the decision has business meaning.
-
-## Temporal and Contextual Analysis
-
-Determine whether anomaly detection depends on:
-
-* Absolute time
-* Time of day
-* Day of week
-* Seasonality
-* Historical entity behavior
-* Rolling windows
-* Recent event history
-* Event sequences
-
-When contextual or collective anomalies are required, the feature strategy should capture the necessary context.
-
-## Labels
-
-Determine whether reliable anomaly labels exist.
-
-### No reliable labels
-
-Potential approaches include:
-
-* Unsupervised anomaly detection
-* Semi-supervised approaches
-* One-class approaches
-* Statistical approaches
-
-The skill should also determine whether the training data is expected to contain mostly normal observations.
-
-### Reliable anomaly labels
-
-Supervised classification may be appropriate when:
-
-* Labels represent the desired business outcome
-* Label quality is sufficient
-* Label coverage is sufficient
-* The label definition is consistent
-* The class imbalance can be handled appropriately
-
-The presence of a label column alone does not guarantee that supervised learning is appropriate.
-
-### Label Assessment
-
-Where labels exist, consider:
-
-* Label definition
-* Label quality
-* Label coverage
-* Recency
-* Class imbalance
-* Label delay
-* Consistency over time
-
-## Feature Strategy
-
-Features should reflect the anomaly definition.
-
-Consider:
-
-* Raw features
-* Aggregated features
-* Historical features
-* Rolling-window features
-* Frequency/velocity features
-* Entity-relative features
-* Temporal features
-* Contextual features
-
-For contextual anomalies, features should capture the context against which abnormality is evaluated.
-
-For collective anomalies, features should preserve the relevant sequence or window information.
-
-Features must be available at inference time and must not introduce future information.
-
-## Candidate Algorithms
-
-Potential algorithm families include:
-
-* Isolation Forest
-* Local Outlier Factor
-* One-Class SVM
-* Autoencoder-based methods
-* Statistical methods
-* Supervised classification methods where reliable labels support that approach
-
-Algorithm selection must consider:
-
-* Dataset size
-* Feature types
-* Dimensionality
-* Label availability and quality
-* Expected anomaly ratio
-* Training cost
-* Inference cost
-* Latency requirements
-* Explainability requirements
-* Temporal/contextual requirements
-* Operational complexity
-
-Do not select an algorithm solely because it is commonly used.
-
-## Algorithm Selection Rules
-
-Use the following general decision logic:
-
-```text id="7x0vpp"
-Reliable anomaly labels?
-        |
-        +-- Yes
-        |     |
-        |     v
-        |  Evaluate supervised classification
-        |
-        +-- No
-              |
-              v
-      Mostly-normal training data?
-              |
-              +-- Yes
-              |     |
-              |     v
-              |  Consider one-class /
-              |  semi-supervised approaches
-              |
-              +-- No
-                    |
-                    v
-               Evaluate unsupervised
-               anomaly detection
+  Data path       : <value>
+  Target column   : <value>
+  Labels          : <value>
+  Model           : <value>
+  Primary metric  : <value>
+  Threshold       : <value>
+  Inference mode  : <value>
+  Platform        : <value>
+  ... (all filled fields)
 ```
 
-This is a starting decision framework. Specialized constraints may narrow the candidate set further.
+2. Show the `ml-project.yaml` snippet that will be written.
 
-If multiple materially different approaches remain feasible, present the options and record the user's decision rather than making an arbitrary selection.
+3. Write all answers into `projects/<project-name>/ml-project.yaml`.
 
-## Training Strategy
+4. Ask:
 
-Determine, as applicable:
+```
+Configuration saved to ml-project.yaml.
 
-* Training data window
-* Whether training data is expected to be mostly normal
-* Whether known anomalies should be excluded
-* Global versus entity-specific modeling
-* Temporal split strategy
-* Retraining frequency
-* Feature availability during training
-* Training data version
+Ready to start training? (yes / no)
+  yes — runs: python src/train.py  (may take a few minutes)
+  no  — you can edit ml-project.yaml and run manually later
+```
 
-Training transformations must follow the common ML transformation rules.
+---
 
-## Validation Strategy
+## If user says "yes" — run training
 
-Validation must be appropriate to the anomaly detection problem.
+```bash
+python projects/<project-name>/src/train.py
+```
 
-### Labeled data
+- Stream the output to the user.
+- When training finishes, read `projects/<project-name>/artifacts/train_report.json`
+  and print the test metrics.
+- Tell the user:
 
-Where reliable labels are available, consider metrics such as:
+```
+Training complete.
+Artifacts saved to projects/<project-name>/artifacts/
 
-* Precision
-* Recall
-* F1
-* Precision-recall analysis
-* Confusion-matrix-based measures
-* Business-specific cost measures
+To score new data:
+  python projects/<project-name>/src/predict.py --input <your_file.csv> --output scored.csv
 
-Metric selection should reflect the business cost of false positives and false negatives.
+To evaluate predictions:
+  python projects/<project-name>/src/evaluate.py --predictions scored.csv --label-col <target_column>
+```
 
-### Unlabeled data
+---
 
-When reliable labels are unavailable, define an alternative validation strategy.
+## If user says "no" — give manual instructions
 
-Possible approaches include:
+```
+No problem. Your project is ready at projects/<project-name>/
 
-* Historical known incidents
-* Expert review
-* Injected or synthetic anomalies where appropriate
-* Temporal holdout analysis
-* Stability analysis
-* Score distribution analysis
-* Comparison with established business rules
+When you're ready, run:
+  python projects/<project-name>/src/train.py
 
-The selected validation method should be justified by the use case.
+Or override any config value on the fly:
+  python projects/<project-name>/src/train.py --set ml_design.selected_algorithm.name=lightgbm
+  python projects/<project-name>/src/train.py --set data.path=my_data.csv
+```
 
-## Threshold Strategy
+---
 
-Anomaly scores must be converted into actionable anomaly decisions where required.
+## Model recommendation rules (from options.md)
 
-Potential threshold strategies include:
+```
+labels.available == true
+    → recommend lightgbm
 
-* Fixed threshold
-* Quantile-based threshold
-* Validation-based threshold
-* Business-defined threshold
-* Algorithm-specific threshold
+labels.available == false AND tabular
+    → recommend isolation_forest
 
-Threshold selection should consider:
+labels.available == false AND time series / sequence
+    → recommend lstm  (not yet in template — fall back to isolation_forest)
 
-* Expected anomaly frequency
-* False-positive cost
-* False-negative cost
-* Operational review capacity
-* Business action
-* Validation results
+labels.available == false AND image/grid
+    → recommend cnn   (not yet in template — fall back to autoencoder)
+```
 
-The threshold is part of the model/inference configuration and should be versioned appropriately.
+Always show the full model menu. User may override the recommendation.
 
-## Inference Output
+---
 
-The inference pipeline should generally produce, as applicable:
+## Metric recommendation rules
 
-* Entity identifier
-* Observation identifier
-* Timestamp
-* Anomaly score
-* Anomaly flag
-* Model version
-* Transformation/model version
-* Relevant explanation or contributing features where supported
+```
+labels.available == true
+    → recommend primary: pr_auc
+    → offer also: f1, precision, recall, roc_auc
 
-The output schema should be defined in the canonical project specification.
+labels.available == false AND some known cases exist
+    → recommend primary: precision_at_k
 
-## Explanation Strategy
+labels.available == false AND no eval labels
+    → recommend primary: expert_review_hit_rate
+    → require secondary: score_stability + anomaly_score_distribution
+```
 
-Where explanations are required, determine what information can be reliably provided by the selected method.
+---
 
-Possible outputs may include:
+## What NOT to do
 
-* Contributing features
-* Feature deviations
-* Reference statistics
-* Nearest-neighbor context
-* Reconstruction error components
-* Other method-specific explanations
+- Do not ask all menus at once.
+- Do not invent model or metric IDs outside [options.md](options.md).
+- Do not run `train.py` without explicit user confirmation ("yes").
+- Do not skip writing `ml-project.yaml` before offering to train.
+- Do not proceed to Phase 3 without asking the user first.
 
-Do not claim explanations that the selected model cannot reliably support.
+---
 
-## Common ML Rules
+## Config fields written (canonical spec)
 
-This skill inherits the common ML requirements for:
+```yaml
+project:
+  name: <project.name>
 
-* Transformation consistency
-* Training-fitted preprocessing
-* Data leakage prevention
-* Feature consistency
-* Artifact association
-* Reproducibility
-* Model and transformation versioning
+data:
+  path: <data.path>
+  target_column: <data.target_column>
+  anomaly_value: <data.anomaly_value>
+  feature_columns: auto
 
-The anomaly detection skill should extend these rules rather than redefine them.
+anomaly_detection:
+  anomaly_type: <anomaly_detection.anomaly_type>
+  entity: <anomaly_detection.entity>
+  labels:
+    available: <anomaly_detection.labels.available>
+  expected_anomaly_frequency: <anomaly_detection.expected_anomaly_frequency>
 
-## Separation of Responsibilities
+inference:
+  mode: <inference.mode>
+  frequency: <inference.frequency>
 
-### Requirements Skill
+ml_design:
+  selected_algorithm:
+    name: <model>
+    selection_reason: user_selected
+  validation_strategy:
+    primary_metric: <primary_metric>
+    secondary_metrics: [<secondary_metrics>]
+  threshold_strategy:
+    method: <threshold_strategy>
+  training_strategy:
+    split_strategy: <split_strategy>
+    test_size: 0.2
+    val_size: 0.2
+    random_state: 42
+    stratify: true
+  feature_strategy: <feature_strategy>
+  explainability:
+    strategy: <explainability>
 
-Determines what information is required and gathers it.
-
-### Common ML Skill
-
-Defines shared ML concepts and invariants.
-
-### Anomaly Detection Skill
-
-Determines anomaly-specific ML requirements and design decisions.
-
-### Pipeline Skills
-
-Determine how data, training, inference, and other workflows are structured.
-
-### Platform Adapter
-
-Determines how the design is implemented on a specific platform.
-
-## Restrictions
-
-This skill must not:
-
-* Contain platform-specific implementation instructions
-* Generate final project code
-* Generate Databricks-specific code
-* Generate cloud-specific infrastructure
-* Replace the requirements skill
-* Replace pipeline design
-* Override common ML invariants without an explicit problem-specific reason
+requirements:
+  user_decisions:
+    - {id: model,            value: <model>,            source: user}
+    - {id: primary_metric,   value: <primary_metric>,   source: user}
+    - {id: inference_mode,   value: <inference_mode>,   source: user}
+    - ... (one entry per user choice)
+```

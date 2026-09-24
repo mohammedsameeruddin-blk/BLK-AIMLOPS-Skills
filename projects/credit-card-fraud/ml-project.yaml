@@ -1,0 +1,65 @@
+project:
+  name: creditcard-fraud
+  version: '1.0'
+data:
+  path: ../../creditcard_data.csv
+  target_column: Class
+  anomaly_value: 1
+  feature_columns: auto
+anomaly_detection:
+  anomaly_type: point
+  labels:
+    available: true
+inference:
+  mode: batch
+ml_design:
+  selected_algorithm:
+    name: lightgbm
+  validation_strategy:
+    primary_metric: f1
+    secondary_metrics:
+    - precision
+    - recall
+    - pr_auc
+    - roc_auc
+  threshold_strategy:
+    method: f1_maximization
+    percentile: 99.0
+    fixed_value: null
+  training_strategy:
+    test_size: 0.2
+    val_size: 0.2
+    random_state: 42
+    stratify: true
+hyperparameters:
+  lof:
+    n_neighbors: 50
+    contamination: auto
+  isolation_forest:
+    n_estimators: 100
+    contamination: auto
+    random_state: 42
+  lightgbm:
+    n_estimators: 300
+    max_depth: 6
+    learning_rate: 0.05
+    scale_pos_weight: auto
+  autoencoder:
+    hidden_dims:
+    - 32
+    - 16
+    - 32
+    epochs: 50
+    batch_size: 256
+    learning_rate: 0.001
+requirements:
+  user_decisions:
+  - id: model
+    value: lof
+    source: user
+  - id: primary_metric
+    value: f1
+    source: user
+  - id: threshold_strategy
+    value: f1_maximization
+    source: user

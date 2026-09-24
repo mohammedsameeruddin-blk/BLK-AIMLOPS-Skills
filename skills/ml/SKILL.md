@@ -168,34 +168,35 @@ Only characteristics relevant to the selected ML problem need to be evaluated.
 
 ## Algorithm Selection
 
-Algorithm selection should not be based solely on the ML problem type.
+Algorithm selection must use the **problem-specific option menu**.
 
-For example:
+For anomaly detection, use only the menu in `skills/ml/anamoly-detection/options.md`:
 
-```text id="6z0d8v"
+* isolation_forest, one_class_svm, lof, autoencoder, cnn, lstm, lightgbm
+
+Show the menu to the user with a recommended default. Do not invent models outside the menu.
+
+```text
 Problem Type
      +
 Data Characteristics
      +
-Business Requirements
-     +
-Operational Constraints
-     +
-Explainability Requirements
+Label availability
      |
      v
-Candidate Algorithms
+Recommended default from rules
      |
      v
-Feasibility Evaluation
+Show fixed MODEL menu → user picks
      |
      v
-Selected Approach
+Show fixed METRIC menu → user picks
+     |
+     v
+Save to canonical spec
 ```
 
-The skill should avoid arbitrary algorithm selection when multiple approaches are feasible.
-
-When a material choice depends on a user or business preference, present the relevant options and record the decision.
+When a material choice depends on a user preference, present the menu and record the decision.
 
 ## Feasibility Evaluation
 

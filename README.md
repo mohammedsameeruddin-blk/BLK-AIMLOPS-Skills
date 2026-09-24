@@ -33,11 +33,31 @@ Same answers → same decision table → same template → same project
 
 ## The 5 rules that keep it deterministic
 
-1. **Lock rules** — e.g. no labels + anomaly → Isolation Forest.
+1. **Fixed option menus** — model/metrics from a list (with a recommended default). User picks; no inventing.
 2. **Save answers** — write into `ml-project.yaml`. Never re-guess from chat.
-3. **Fail if incomplete** — missing data path or inference mode → stop.
+3. **Fail if incomplete** — missing data path, model, or metric → stop.
 4. **Use templates only** — fill blanks; do not invent pipelines.
-5. **Ask user only for real choices** — batch vs realtime, labels yes/no.
+5. **Ask user only for real choices** — labels, batch/realtime, model menu, metric menu.
+
+### Anomaly menus (user picks from lists)
+
+Not only model/metric — all major choices are menus:
+
+| Area | Examples |
+|---|---|
+| Data source | CSV, Databricks table, DB, cloud storage, streaming |
+| Labels | yes / no / partial |
+| Anomaly type | point / contextual / collective |
+| Entity | transaction / customer / device / … |
+| Serve | batch / near-realtime / realtime |
+| Model | Isolation Forest, One-Class SVM, LOF, Autoencoder, CNN, LSTM, LightGBM |
+| Metrics | precision, recall, F1, PR-AUC, Precision@K, … |
+| Threshold | quantile, top-K, F1-optimal, … |
+| Features | raw, rolling, entity-relative, mixed, … |
+| Action | review queue, auto-block, notify, … |
+| Monitor / retrain / platform | basic→full, schedule/drift, Databricks/AWS/… |
+
+See `skills/ml/anamoly-detection/options.md`.
 
 ---
 

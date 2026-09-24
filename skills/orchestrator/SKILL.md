@@ -54,9 +54,15 @@ Questions should be:
 
 ### Rule 4: Do not silently make material decisions
 
-When multiple materially different approaches are feasible and the choice depends on a business or architectural preference, present the options and request user confirmation.
+When multiple materially different approaches are feasible and the choice depends on a business or architectural preference, present a **fixed option menu**, mark the recommended default, and request user confirmation.
+
+For anomaly detection this includes:
+
+* Model menu (Isolation Forest, One-Class SVM, LOF, Autoencoder, CNN, LSTM, LightGBM)
+* Metric menu (precision, recall, F1, PR-AUC, ROC-AUC, Precision@K, etc.)
 
 Record the selected decision in the canonical specification.
+Do not invent options outside the published menus.
 
 ### Rule 5: Skills own domain reasoning
 

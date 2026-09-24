@@ -164,18 +164,45 @@ For each requirements iteration:
 
 ## Dynamic Options
 
-Prefer multiple-choice options when meaningful options can be determined from available information.
+Prefer **multiple-choice options** whenever a decision has a fixed menu.
+Do not ask open-ended questions for model or metric names.
 
-Options should be derived from:
+Options should come from:
 
+* Fixed skill menus (see anomaly `options.md`)
 * User-provided context
-* Dataset schema
-* Dataset metadata
-* Existing project information
+* Dataset schema / metadata
 * Platform capabilities
 * Established decision rules
 
-Do not present options that are unsupported by the available context.
+Mark one option as **(recommended)**. Save the user’s pick into the canonical spec.
+
+### Always use option menus for (anomaly)
+
+When `problem_type = anomaly_detection`, ask unresolved items as numbered choices.
+Full menus: `skills/ml/anamoly-detection/options.md` and `schemas/anomaly-options.yaml`.
+
+Cover **all** of these (skip only if already known):
+
+1. **Data source** — csv_parquet / databricks_table / database / cloud_object_storage / streaming / other  
+2. **Labels** — true / false / partial  
+3. **Anomaly type** — point / contextual / collective  
+4. **Entity grain** — transaction / customer / device / merchant / session / other  
+5. **Inference mode** — batch / near_realtime / realtime (+ frequency if needed)  
+6. **Model** — isolation_forest / one_class_svm / lof / autoencoder / cnn / lstm / lightgbm  
+7. **Primary metric** — precision / recall / f1 / pr_auc / roc_auc / precision_at_k / …  
+8. **Threshold** — quantile / contamination / f1_optimal / business_cost / fixed / top_k  
+9. **Split** — random / temporal / entity / none_unsupervised  
+10. **Features** — raw / aggregated / rolling_window / entity_relative / sequence / mixed  
+11. **Explainability** — none / top_features / shap / rule_overlay  
+12. **Action on alert** — review_queue / auto_block / notify_only / score_only / step_up_auth  
+13. **Monitoring** — basic / drift / performance / full  
+14. **Retraining** — manual / schedule / drift / performance_drop / new_labels  
+15. **Platform** — local / databricks / aws / azure / gcp  
+16. **Expected anomaly rate** — 0.1% / 1% / 5% / 10% / custom  
+
+Mark **(recommended)** on one option. Save every pick to the canonical spec.
+Do **not** accept free-text outside the menu; re-show the list.
 
 Example:
 
@@ -183,23 +210,18 @@ User:
 
 > "I want anomaly detection for customer transactions."
 
-The skill should not ask:
+Do not ask “What is your ML problem?” — already clear.
 
-> "What is your ML problem?"
+Ask next unresolved menu, e.g. data source:
 
-The ML problem is already apparent from the request.
+1. Databricks table  
+2. CSV/Parquet  
+3. Database  
+4. Cloud object storage  
+5. Streaming  
+6. Other  
 
-Instead, it may ask:
-
-> "Where is your transaction data stored?"
-
-Possible options:
-
-1. Databricks table
-2. CSV/Parquet
-3. Database
-4. Cloud object storage
-5. Other
+Then continue progressively: labels → anomaly type → entity → inference → model → metrics → …
 
 ## Dataset and Schema Inspection
 
