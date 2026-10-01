@@ -11,3 +11,4 @@ artifacts/
 .venv/
 venv/
 .env
+projects/

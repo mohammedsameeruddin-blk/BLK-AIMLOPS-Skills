@@ -1,0 +1,13 @@
+[project]
+name = "my-anomaly-detection"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "scikit-learn==1.5.2",
+    "pandas==2.2.3",
+    "numpy==1.26.4",
+    "joblib==1.4.2",
+    "lightgbm==4.5.0",
+    "torch>=2.6.0",
+    "pyyaml==6.0.2",
+]

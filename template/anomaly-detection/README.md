@@ -15,13 +15,19 @@ A reusable, config-driven ML pipeline for anomaly / fraud detection on tabular d
 
 ## Quick start
 
-### 1. Install dependencies
+### 1. Install uv
 
 ```bash
-pip install -r requirements.txt
+pip install uv
 ```
 
-### 2. Configure your project
+### 2. Install dependencies
+
+```bash
+uv sync
+```
+
+### 3. Configure your project
 
 Edit `ml-project.yaml`:
 
@@ -42,7 +48,7 @@ ml_design:
     primary_metric: f1          # f1 | pr_auc | precision | recall | roc_auc
 ```
 
-### 3. Train
+### 4. Train
 
 ```bash
 python src/train.py
@@ -51,13 +57,13 @@ python src/train.py --set ml_design.selected_algorithm.name=isolation_forest
 python src/train.py --set data.path=new_data.csv --set hyperparameters.lof.n_neighbors=100
 ```
 
-### 4. Score a batch
+### 5. Score a batch
 
 ```bash
 python src/predict.py --input data/new_transactions.csv --output scored.csv
 ```
 
-### 5. Evaluate (if ground-truth labels are available)
+### 6. Evaluate (if ground-truth labels are available)
 
 ```bash
 python src/evaluate.py --predictions scored.csv --label-col is_fraud
@@ -116,7 +122,7 @@ ml_design:
 ```
 template/anomaly-detection/
   ml-project.yaml      ← fill this in, then run train.py
-  requirements.txt
+  pyproject.toml
   src/
     train.py           ← main training script
     predict.py         ← batch scoring

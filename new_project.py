@@ -55,6 +55,12 @@ def main():
     text = text.replace("name: my-anomaly-detection", f"name: {slug}", 1)
     yaml_path.write_text(text)
 
+    # Stamp the project name into pyproject.toml
+    toml_path = dest / "pyproject.toml"
+    text = toml_path.read_text()
+    text = text.replace('name = "my-anomaly-detection"', f'name = "{slug}"', 1)
+    toml_path.write_text(text)
+
     print(f"\nProject created: {dest}/")
     print(f"\nNext steps:")
     print(f"  1. Edit  {dest}/ml-project.yaml")
