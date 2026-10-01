@@ -114,7 +114,7 @@ def main(args):
         test_metrics = compute_all(y_test, y_pred_test, test_scores)
         print("\nTest metrics:")
         for k, v in test_metrics.items():
-            marker = " ← primary" if k == primary_metric else ""
+            marker = " <- primary" if k == primary_metric else ""
             print(f"  {k}: {v}{marker}")
     else:
         flagged = y_pred_test.sum()
@@ -158,7 +158,7 @@ def main(args):
     with open(config_path, "w") as f:
         yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
 
-    print(f"\nArtifacts saved → {ARTIFACT_DIR}/")
+    print(f"\nArtifacts saved -> {ARTIFACT_DIR}/")
     print("  scaler.pkl  model.pkl  meta.json  train_report.json")
 
 
