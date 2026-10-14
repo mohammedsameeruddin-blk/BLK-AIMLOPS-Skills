@@ -86,10 +86,15 @@ I'll collect your requirements and fill in ml-project.yaml there.
 | 19 | Monitoring level? | `monitoring.level` |
 | 20 | Retraining trigger? | `retraining.trigger.type` |
 | 21 | Platform? | `platform.name` |
+| 22 | MLflow tracking? | hand off to MLflow skill → `mlflow.*` |
+
+For step 22, read `skills/mlops/mlflow/SKILL.md` and ask menus from
+`skills/mlops/mlflow/options.md` (enable → tracking backend → experiment →
+register). Write the `mlflow:` block into this project’s `ml-project.yaml`.
 
 > Phases 1 and 2 are **required** before training.
 > Phase 3 is optional — ask: *"Do you want to configure operations settings
-> (monitoring, retraining, platform)? Or skip to training?"*
+> (monitoring, retraining, platform, MLflow)? Or skip to training?"*
 
 ---
 

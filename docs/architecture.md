@@ -328,11 +328,28 @@ Do **not** ask:
 
 ---
 
+## MLflow (tracking + registry)
+
+After ML design (and usually with platform choice), configure MLflow via
+`skills/mlops/mlflow/` menus. Results go in `mlflow:` on the canonical spec.
+
+| Default | Local | Databricks |
+|---|---|---|
+| Tracking | `./mlruns` | workspace MLflow |
+| Register | optional (often false first) | recommended true |
+| Stage | none / staging | staging before production |
+| Autolog | false (explicit logs) | false (explicit logs) |
+
+Pipeline Lock E still includes `register_model_and_transforms`. When
+`mlflow.register_model=true`, registration is through MLflow Model Registry
+(or Databricks UC models as org policy dictates).
+
 ## Out of scope for this version
 
 - Classification and regression locks (next)
 - Full Databricks / AWS code generation
 - Auto-picking exotic deep models by default
+- Full template train.py MLflow wiring (skill + YAML first; code hooks next)
 
 ---
 

@@ -73,6 +73,7 @@ Examples:
 * Requirements skill → requirements discovery
 * ML problem skill → ML-specific design
 * Pipeline skills → pipeline structure
+* MLflow skill → experiment tracking + model registry config
 * Platform adapter → platform-specific implementation
 * Validation skill → implementation and design validation
 
@@ -342,6 +343,8 @@ Orchestrator
      |
      +---- Inference Pipeline Skill
      |
+     +---- MLflow Skill          (skills/mlops/mlflow)
+     |
      +---- Platform Adapter
      |
      +---- Validation
@@ -350,6 +353,16 @@ Orchestrator
 Not every project requires every skill.
 
 The selected workflow should depend on the requirements and project specification.
+
+### MLflow routing
+
+Invoke `skills/mlops/mlflow/SKILL.md` when:
+
+* User mentions MLflow, experiment tracking, or model registry
+* Platform mapping / pre-train stage and `mlflow.enabled` is unresolved
+* User wants metrics/params/models logged consistently
+
+Use menus from `skills/mlops/mlflow/options.md` only. Write results to `mlflow:` in the canonical spec.
 
 ## Initial Supported ML Problem Types
 

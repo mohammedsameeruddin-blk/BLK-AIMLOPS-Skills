@@ -358,13 +358,30 @@ platform:
   requirements: []
 
   mapping:
-    # Populated by platform adapter.
+    # Populated by platform adapter / MLflow skill.
     data_storage: null
     compute: null
     orchestration: null
-    model_registry: null
+    model_registry: null  # e.g. mlflow when mlflow.register_model=true
     serving: null
     monitoring: null
+
+# Populated by skills/mlops/mlflow (menus in skills/mlops/mlflow/options.md).
+mlflow:
+  enabled: null  # true | false
+  tracking_uri_mode: null  # local_file | databricks | remote_uri
+  tracking_uri: null
+  experiment_name: null
+  run_name_strategy: null  # timestamped | model_metric | custom
+  autolog: null
+  log_params: null
+  log_metrics: null
+  log_artifacts: null
+  register_model: null
+  registered_model_name: null
+  model_stage: null  # none | staging | production | archived
+  artifact_flavor: null  # sklearn | pyfunc | pytorch
+  tags: {}
 
 artifacts:
   model:

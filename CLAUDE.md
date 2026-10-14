@@ -17,18 +17,21 @@ The orchestrator coordinates:
 - `skills/ml/common/SKILL.md` — shared ML rules (transformation consistency, leakage)
 - `skills/ml/anamoly-detection/SKILL.md` — anomaly detection workflow (fully implemented)
 - `skills/ml/anamoly-detection/options.md` — fixed option menus (use these; do not invent options)
+- `skills/mlops/mlflow/SKILL.md` — MLflow tracking + registry config
+- `skills/mlops/mlflow/options.md` — MLflow option menus (use these; do not invent options)
 
 ## Entry points
 
 | Trigger | What to do |
 |---|---|
 | `/anomaly-detection` | Read `skills/ml/anamoly-detection/SKILL.md` and start Phase 0 |
+| MLflow / tracking / model registry | Read `skills/mlops/mlflow/SKILL.md` and ask menus from its `options.md` |
 | Any ML/MLOps natural-language request | Read `skills/orchestrator/SKILL.md` and follow the workflow |
 
 ## Key rules
 
 - Read the relevant skill file **before** asking the user any questions.
-- Never invent model or metric options — always use the menus in `skills/ml/anamoly-detection/options.md`.
+- Never invent model, metric, or MLflow options — use the menus in `skills/ml/anamoly-detection/options.md` and `skills/mlops/mlflow/options.md`.
 - Ask **one menu at a time**. Wait for the answer before proceeding.
 - Do not generate implementation code before the requirements gate passes.
 - New projects are created with: `python new_project.py --name <project-name>`

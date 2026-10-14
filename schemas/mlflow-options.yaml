@@ -1,0 +1,51 @@
+# Machine-readable MLflow option menus
+
+enable:
+  - {id: "true", label: Enable MLflow tracking, recommended_when: default}
+  - {id: "false", label: No MLflow}
+
+tracking_backends:
+  - {id: local_file, label: Local file store ./mlruns, tracking_uri: ./mlruns, recommended_when: local}
+  - {id: databricks, label: Databricks workspace MLflow, tracking_uri: databricks, recommended_when: databricks}
+  - {id: remote_uri, label: Custom tracking server URL, tracking_uri: null}
+
+experiment_naming:
+  - {id: project_name, label: Use project name, recommended_when: local}
+  - {id: shared_folder, label: /Shared/<project>, recommended_when: databricks}
+  - {id: user_folder, label: /Users/<user>/<project>, recommended_when: databricks}
+  - {id: custom, label: Custom name}
+
+run_naming:
+  - {id: timestamped, label: model_timestamp, recommended_when: default}
+  - {id: model_metric, label: model_primary_metric}
+  - {id: custom, label: Custom run name}
+
+autolog:
+  - {id: "false", label: Explicit logging only, recommended_when: default}
+  - {id: "true", label: mlflow.autolog}
+
+log_items:
+  - {id: log_params, label: Log params, default: true}
+  - {id: log_metrics, label: Log metrics, default: true}
+  - {id: log_artifacts, label: Log artifacts, default: true}
+
+register_model:
+  - {id: "false", label: Tracking only, recommended_when: local_first_run}
+  - {id: "true", label: Register to Model Registry, recommended_when: databricks}
+
+model_stages:
+  - {id: none, label: No stage}
+  - {id: staging, label: Staging, recommended_when: registering}
+  - {id: production, label: Production, requires_explicit_confirm: true}
+  - {id: archived, label: Archived}
+
+artifact_flavors:
+  - {id: sklearn, label: mlflow.sklearn, recommended_when: classic_anomaly}
+  - {id: pyfunc, label: mlflow.pyfunc}
+  - {id: pytorch, label: mlflow.pytorch, recommended_when: deep_models}
+
+tags:
+  - {id: problem_type, label: Tag problem type}
+  - {id: model_id, label: Tag model id}
+  - {id: dataset_version, label: Tag dataset version}
+  - {id: git_commit, label: Tag git commit}

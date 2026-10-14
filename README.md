@@ -59,6 +59,18 @@ Not only model/metric — all major choices are menus:
 
 See `skills/ml/anamoly-detection/options.md`.
 
+### MLflow menus
+
+| Area | Examples |
+|---|---|
+| Enable | true / false |
+| Tracking | local `./mlruns`, Databricks MLflow, remote URI |
+| Experiment name | project name / Shared folder / custom |
+| Log | params, metrics, artifacts |
+| Registry | register yes/no, stage none/staging/production |
+
+See `skills/mlops/mlflow/options.md`. Agent asks choices → writes `mlflow:` into `ml-project.yaml`.
+
 ---
 
 ## Simple example
@@ -97,6 +109,8 @@ If the gate fails → ask again. Do not generate code.
 | Area | Status |
 |---|---|
 | Anomaly detection | In progress (locked rules) |
+| MLflow skill (tracking / registry menus) | Added |
+| MLflow hooks in train.py template | Next |
 | Classification | Next |
 | Regression | Next |
 | Databricks templates | Next |
@@ -110,12 +124,15 @@ If the gate fails → ask again. Do not generate code.
 README.md                 ← start here
 docs/architecture.md      ← deterministic rules and gates
 schemas/ml-project.yaml   ← canonical project specification
+schemas/mlflow-options.yaml
 skills/                   ← AI skill playbooks
   orchestrator/
   requirements/
   ml/
     common/
     anamoly-detection/    ← anomaly first
+  mlops/
+    mlflow/               ← tracking + registry menus
 ```
 
 ---
@@ -123,6 +140,7 @@ skills/                   ← AI skill playbooks
 ## Read next
 
 - [docs/architecture.md](docs/architecture.md) — locked models, metrics, required fields, pass/fail criteria.
+- [skills/mlops/mlflow/SKILL.md](skills/mlops/mlflow/SKILL.md) — MLflow menus and YAML shape.
 
 ---
 
