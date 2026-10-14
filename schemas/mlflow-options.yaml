@@ -5,8 +5,8 @@ enable:
   - {id: "false", label: No MLflow}
 
 tracking_backends:
-  - {id: local_file, label: Local file store ./mlruns, tracking_uri: ./mlruns, recommended_when: local}
-  - {id: databricks, label: Databricks workspace MLflow, tracking_uri: databricks, recommended_when: databricks}
+  - {id: databricks, label: Databricks workspace MLflow, tracking_uri: databricks, recommended_when: default}
+  - {id: local_file, label: Local file store ./mlruns, tracking_uri: ./mlruns, recommended_when: local_demo}
   - {id: remote_uri, label: Custom tracking server URL, tracking_uri: null}
 
 experiment_naming:

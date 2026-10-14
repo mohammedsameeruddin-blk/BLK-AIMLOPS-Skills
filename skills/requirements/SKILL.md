@@ -198,7 +198,7 @@ Cover **all** of these (skip only if already known):
 12. **Action on alert** — review_queue / auto_block / notify_only / score_only / step_up_auth  
 13. **Monitoring** — basic / drift / performance / full  
 14. **Retraining** — manual / schedule / drift / performance_drop / new_labels  
-15. **Platform** — local / databricks / aws / azure / gcp  
+15. **Platform** — databricks (standard) / local (demo only)  
 16. **Expected anomaly rate** — 0.1% / 1% / 5% / 10% / custom  
 
 Mark **(recommended)** on one option. Save every pick to the canonical spec.

@@ -107,11 +107,8 @@ retraining_triggers:
   - {id: new_labels, label: When new labels arrive}
 
 platforms:
-  - {id: local, label: Local Python}
-  - {id: databricks, label: Databricks}
-  - {id: aws, label: AWS}
-  - {id: azure, label: Azure}
-  - {id: gcp, label: GCP}
+  - {id: databricks, label: Databricks, recommended_when: default}
+  - {id: local, label: Local Python (demo only)}
 
 expected_anomaly_rates:
   - {id: "0.001", label: "~0.1%"}

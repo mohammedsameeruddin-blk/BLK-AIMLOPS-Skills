@@ -74,23 +74,25 @@ If Step 1 = `false`, stop and set `mlflow.enabled: false`. Do not ask the rest.
 
 ## Recommended defaults
 
-```text
-platform = local
-  → tracking_uri_mode = local_file          (./mlruns)
-  → register_model = false                  (optional true for practice)
-  → experiment_name = <project.name>
+Blackstraw platform is **Databricks**. Prefer Databricks MLflow.
 
-platform = databricks
+```text
+platform = databricks (standard)
   → tracking_uri_mode = databricks          (workspace MLflow)
-  → register_model = true                   (Unity Catalog or workspace registry per org)
+  → register_model = true
   → experiment_name = /Shared/<project.name> or /Users/<user>/<project.name>
+  → model_stage = staging                   (never production without confirm)
+
+platform = local (demo only)
+  → tracking_uri_mode = local_file          (./mlruns)
+  → register_model = false
+  → experiment_name = <project.name>
 
 Always when enabled:
   → log_params = true
   → log_metrics = true
   → log_artifacts = true
   → autolog = false                         (explicit logging preferred for determinism)
-  → model_stage = staging                   (never production without confirm)
 ```
 
 ---

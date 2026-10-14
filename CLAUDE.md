@@ -1,6 +1,8 @@
 # BLK-AIMLOPS Skills
 
-This repository is an MLOps skills framework. It lets a user build and train ML models by answering guided questions — no code required.
+This repository is an MLOps skills framework for **Databricks**. It lets a user build and train ML models by answering guided questions — no code required.
+
+Platform scope: **Databricks only** (not AWS / Azure / GCP). Local Python is allowed only for quick template demos.
 
 ## Skills system
 

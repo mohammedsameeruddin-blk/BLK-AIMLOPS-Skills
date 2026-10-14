@@ -193,13 +193,12 @@ Ask progressively (only unresolved items). Do not dump every menu at once.
 
 ## 16. Platform
 
+Blackstraw standard is **Databricks only**.
+
 | id | label | recommended_when |
 |---|---|---|
-| local | Local Python / files | demo / TEST folders |
-| databricks | Databricks | lakehouse / UC / Jobs |
-| aws | AWS (SageMaker / etc.) | AWS-standard orgs |
-| azure | Azure ML | Azure-standard orgs |
-| gcp | GCP Vertex | GCP-standard orgs |
+| databricks | Databricks (Unity Catalog / Jobs / MLflow) | **always (recommended)** |
+| local | Local Python (laptop demo of the template only) | quick offline test |
 
 ---
 

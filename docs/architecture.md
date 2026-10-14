@@ -347,7 +347,7 @@ Pipeline Lock E still includes `register_model_and_transforms`. When
 ## Out of scope for this version
 
 - Classification and regression locks (next)
-- Full Databricks / AWS code generation
+- Full Databricks Jobs / UC deploy automation
 - Auto-picking exotic deep models by default
 - Full template train.py MLflow wiring (skill + YAML first; code hooks next)
 

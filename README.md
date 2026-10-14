@@ -1,106 +1,151 @@
 # BLK AI MLOps Skills
 
-Standard way for anyone at Blackstraw to build ML projects — same questions, same rules, same output.
+Standard way for Blackstraw to build **ML / MLOps projects on Databricks**.
 
-**Goal:** If two people give the same answers, they get almost the same project (about 5–10% difference max).
+You describe a use case in chat → the agent asks guided multiple-choice questions → it writes a project config → you can train.
 
----
+**Goal:** Same answers → almost the same project (about 5–10% difference max).
 
-## What this does (today)
-
-1. Understand the ML request (anomaly detection first).
-2. Ask only the missing questions.
-3. Save every answer into one file: `schemas/ml-project.yaml`.
-4. Fail if required fields are missing (do not invent).
-5. Apply **locked rules** for model, metrics, and pipelines.
-6. Later: fill fixed templates (Databricks) — do not invent new pipelines.
-
-**Not done yet:** full Databricks code generation, regression, classification.
+**Platform:** **Databricks only** (Unity Catalog, Jobs, MLflow on Databricks). No AWS / Azure / GCP adapters.
 
 ---
 
-## Why this exists
+## How to use (start here)
 
-Without locks, AI can pick different models and layouts for the same use case.
+### 1. Open this repo in Cursor
 
-With locks:
+Work inside this folder so the agent can read `skills/` and `CLAUDE.md`.
+
+### 2. Start a new chat and ask in plain English
+
+Example:
 
 ```text
-Same answers → same decision table → same template → same project
+I want to build an anomaly detection MLOps pipeline for credit card transactions.
+The output should identify suspicious transactions.
 ```
+
+Or use the shortcut:
+
+```text
+/anomaly-detection
+```
+
+### 3. Answer the menus
+
+The agent will ask **one question at a time**, for example:
+
+- Project name  
+- Where is the data? (Databricks table / CSV / …)  
+- Labels?  
+- Model? (Isolation Forest, LOF, …)  
+- Metric? (F1, PR-AUC, Precision@K, …)  
+- Batch or realtime?  
+- MLflow tracking / registry?  
+
+Reply with a **number**, an **id**, or `use recommended`.
+
+You do **not** need to edit YAML by hand.
+
+### 4. Review what was created
+
+The agent creates:
+
+```text
+projects/<your-project-name>/
+  ml-project.yaml     ← your answers (source of truth)
+  src/train.py
+  src/predict.py
+  src/evaluate.py
+  ...
+```
+
+### 5. Train (when the agent asks, or manually)
+
+```bash
+# from repo root — create a project (agent usually does this)
+python new_project.py --name my-project
+
+cd projects/my-project
+uv sync                    # install deps
+
+# set data.path in ml-project.yaml to your table export / CSV, then:
+python src/train.py
+python src/predict.py --input data/new_rows.csv --output scored.csv
+```
+
+On Databricks, point `data.path` / source at a **Unity Catalog table** or volume path as you configure the project.
 
 ---
 
-## The 5 rules that keep it deterministic
+## What happens behind the scenes
 
-1. **Fixed option menus** — model/metrics from a list (with a recommended default). User picks; no inventing.
-2. **Save answers** — write into `ml-project.yaml`. Never re-guess from chat.
-3. **Fail if incomplete** — missing data path, model, or metric → stop.
-4. **Use templates only** — fill blanks; do not invent pipelines.
-5. **Ask user only for real choices** — labels, batch/realtime, model menu, metric menu.
+```text
+Your request
+    → Agent reads skills (orchestrator → anomaly → optional MLflow)
+    → Asks fixed option menus (one at a time)
+    → Writes projects/<name>/ml-project.yaml
+    → Requirements gate (pass / fail)
+    → Ready to train? → run train.py
+```
 
-### Anomaly menus (user picks from lists)
+Same picks → same model family, metrics, and layout.
 
-Not only model/metric — all major choices are menus:
+---
 
-| Area | Examples |
+## What you can choose (menus)
+
+Full lists live in the skill files. Summary:
+
+| Topic | Examples |
 |---|---|
-| Data source | CSV, Databricks table, DB, cloud storage, streaming |
+| Data | Databricks table, CSV/Parquet, streaming |
 | Labels | yes / no / partial |
-| Anomaly type | point / contextual / collective |
-| Entity | transaction / customer / device / … |
-| Serve | batch / near-realtime / realtime |
 | Model | Isolation Forest, One-Class SVM, LOF, Autoencoder, CNN, LSTM, LightGBM |
-| Metrics | precision, recall, F1, PR-AUC, Precision@K, … |
-| Threshold | quantile, top-K, F1-optimal, … |
-| Features | raw, rolling, entity-relative, mixed, … |
-| Action | review queue, auto-block, notify, … |
-| Monitor / retrain / platform | basic→full, schedule/drift, Databricks/AWS/… |
+| Metrics | precision, recall, F1, PR-AUC, ROC-AUC, Precision@K, … |
+| Serve | batch / near-realtime / realtime |
+| Ops | monitoring, retraining, alert action |
+| MLflow | Databricks MLflow tracking, experiment name, register model, stage |
 
-See `skills/ml/anamoly-detection/options.md`.
-
-### MLflow menus
-
-| Area | Examples |
-|---|---|
-| Enable | true / false |
-| Tracking | local `./mlruns`, Databricks MLflow, remote URI |
-| Experiment name | project name / Shared folder / custom |
-| Log | params, metrics, artifacts |
-| Registry | register yes/no, stage none/staging/production |
-
-See `skills/mlops/mlflow/options.md`. Agent asks choices → writes `mlflow:` into `ml-project.yaml`.
+- Anomaly menus: [`skills/ml/anamoly-detection/options.md`](skills/ml/anamoly-detection/options.md)  
+- MLflow menus: [`skills/mlops/mlflow/options.md`](skills/mlops/mlflow/options.md)
 
 ---
 
 ## Simple example
 
-**Ask:** Detect anomalies in fryer temperature. No labels. Score once a day.
+**You say:** Detect anomalies in credit card transactions. No labels. Score daily on Databricks.
 
-**Locked result (both people get this):**
+**Typical locked result:**
 
-| Decision | Locked value |
+| Decision | Value |
 |---|---|
 | Problem | Anomaly detection |
-| Model | Isolation Forest |
-| Metric | Score distribution + precision@k when labels appear later |
-| Serve | Batch (daily) |
-| Spec file | `ml-project.yaml` |
+| Platform | Databricks |
+| Model | Isolation Forest (recommended if unlabeled) |
+| Metric | Precision@K (if some known cases) |
+| Serve | Batch |
+| Tracking | Databricks MLflow |
+| Config | `projects/<name>/ml-project.yaml` |
 
 ---
 
-## How a run works
+## Repo layout
 
 ```text
-User request
-    → Ask missing questions (only real choices)
-    → Update ml-project.yaml
-    → Requirements gate (pass / fail)
-    → Apply anomaly decision locks
-    → Design / templates (no free-form inventing)
+README.md                      ← you are here
+CLAUDE.md                      ← rules for the AI agent
+docs/architecture.md           ← deterministic rules & gates
+schemas/                       ← project + option schemas
+skills/
+  orchestrator/                ← starts every ML request
+  requirements/                ← asks questions
+  ml/anamoly-detection/        ← anomaly flow + menus
+  mlops/mlflow/                ← MLflow menus on Databricks
+template/anomaly-detection/    ← copied into each new project
+projects/                      ← your generated projects
+new_project.py                 ← bootstrap a project folder
 ```
-
-If the gate fails → ask again. Do not generate code.
 
 ---
 
@@ -108,51 +153,38 @@ If the gate fails → ask again. Do not generate code.
 
 | Area | Status |
 |---|---|
-| Anomaly detection | In progress (locked rules) |
-| MLflow skill (tracking / registry menus) | Added |
-| MLflow hooks in train.py template | Next |
-| Classification | Next |
-| Regression | Next |
-| Databricks templates | Next |
-| AWS / Azure adapters | Later |
+| Anomaly detection (menus + template) | Ready to use |
+| MLflow skill (Databricks tracking / registry menus) | Ready |
+| Train / predict template | Ready (local or Databricks-compatible code) |
+| MLflow wired inside `train.py` | Next |
+| Classification / regression | Planned |
+| Full Databricks Jobs / UC deploy automation | Planned |
 
 ---
 
-## Repo layout
+## Rules (keeps everyone consistent)
 
-```text
-README.md                 ← start here
-docs/architecture.md      ← deterministic rules and gates
-schemas/ml-project.yaml   ← canonical project specification
-schemas/mlflow-options.yaml
-skills/                   ← AI skill playbooks
-  orchestrator/
-  requirements/
-  ml/
-    common/
-    anamoly-detection/    ← anomaly first
-  mlops/
-    mlflow/               ← tracking + registry menus
-```
+1. **Fixed menus only** — no inventing models or metrics.  
+2. **Save answers** in `ml-project.yaml` — don’t re-guess from chat.  
+3. **Fail if incomplete** — missing data path / model / metric → stop.  
+4. **Templates only** — fill blanks; don’t invent a new pipeline layout.  
+5. **Databricks only** — platform is Databricks (not AWS / Azure / GCP).
 
 ---
 
-## Read next
+## More detail
 
-- [docs/architecture.md](docs/architecture.md) — locked models, metrics, required fields, pass/fail criteria.
-- [skills/mlops/mlflow/SKILL.md](skills/mlops/mlflow/SKILL.md) — MLflow menus and YAML shape.
+- [docs/architecture.md](docs/architecture.md) — gates, locks, fulfillment criteria  
+- [skills/ml/anamoly-detection/SKILL.md](skills/ml/anamoly-detection/SKILL.md) — step-by-step anomaly flow  
+- [skills/mlops/mlflow/SKILL.md](skills/mlops/mlflow/SKILL.md) — MLflow on Databricks  
 
 ---
 
 ## Consistency target
 
-Same use case + same answers + same platform → same:
+Same use case + same answers on Databricks → same:
 
-- problem type
-- model family
-- primary metric
-- inference mode
-- pipeline stages
-- project folder layout
+- problem type, model family, primary metric  
+- inference mode, pipeline stages, folder layout  
 
 Allowed small differences: table names, thresholds, cluster size, project name.

@@ -19,11 +19,13 @@ Ask **one menu at a time**. Skip if already set.
 
 ## 2. Tracking backend
 
+Blackstraw standard is **Databricks MLflow**.
+
 | id | label | tracking_uri | recommended_when |
 |---|---|---|---|
-| local_file | Local file store (`./mlruns`) | `./mlruns` | platform = local |
-| databricks | Databricks workspace MLflow | `databricks` | platform = databricks |
-| remote_uri | Custom tracking server URL | *(ask user for URL)* | shared MLflow server |
+| databricks | Databricks workspace MLflow | `databricks` | **always (recommended)** |
+| local_file | Local file store (`./mlruns`) | `./mlruns` | laptop demo only |
+| remote_uri | Custom tracking server URL | *(ask user for URL)* | rare / special case |
 
 ---
 
