@@ -68,7 +68,7 @@ Skip items already set in the project YAML.
 | 7 | Initial stage | `mlflow.model_stage` |
 | 8 | Run naming | `mlflow.run_name_strategy` |
 
-If Step 1 = `false`, stop and set `mlflow.enabled: false`. Do not ask the rest.
+If Step 1 = `false`, stop. Do **not** write any `mlflow:` block — the template default (`enabled: false`) already covers the disabled state. Do not ask the rest.
 
 ---
 

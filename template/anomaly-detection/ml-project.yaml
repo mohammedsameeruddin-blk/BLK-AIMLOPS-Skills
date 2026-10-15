@@ -52,6 +52,9 @@ hyperparameters:
     epochs: 50
     batch_size: 256
     learning_rate: 0.001
+mlflow:
+  enabled: false   # set to true (and fill remaining fields) via /anomaly-detection skill
+
 requirements:
   user_decisions:
   - id: model

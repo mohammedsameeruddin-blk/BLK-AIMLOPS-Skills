@@ -14,11 +14,13 @@ What it does:
   5. Tune decision threshold on validation set
   6. Evaluate on test set
   7. Save artifacts to <project_root>/artifacts/
+  8. Log to MLflow if mlflow.enabled=true in ml-project.yaml
 """
 
 import argparse
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import joblib
@@ -51,6 +53,121 @@ def _import_model(name: str):
     return importlib.import_module(module_path)
 
 
+def _setup_mlflow(cfg):
+    """Return (run_context, mlflow_module) if mlflow.enabled=true, else (nullcontext, None)."""
+    import contextlib
+
+    mlflow_cfg = cfg.get("mlflow") or {}
+    if not mlflow_cfg.get("enabled", False):
+        return contextlib.nullcontext(), None
+
+    try:
+        import mlflow
+        import mlflow.sklearn
+    except ImportError:
+        print("  [mlflow] package not installed — skipping (pip install mlflow)")
+        return contextlib.nullcontext(), None
+
+    tracking_uri_mode = mlflow_cfg.get("tracking_uri_mode", "local_file")
+    if tracking_uri_mode == "local_file":
+        mlflow.set_tracking_uri(str(ROOT / "mlruns"))
+    elif tracking_uri_mode == "databricks":
+        mlflow.set_tracking_uri("databricks")
+    else:
+        mlflow.set_tracking_uri(mlflow_cfg.get("tracking_uri", "./mlruns"))
+
+    experiment_name = mlflow_cfg.get(
+        "experiment_name",
+        cfg_mod.get(cfg, "project.name", "anomaly-detection"),
+    )
+    mlflow.set_experiment(experiment_name)
+
+    model_name = cfg_mod.get(cfg, "ml_design.selected_algorithm.name", "model")
+    strategy = mlflow_cfg.get("run_name_strategy", "timestamped")
+    if strategy == "timestamped":
+        run_name = f"{model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    elif strategy == "model_metric":
+        metric = cfg_mod.get(cfg, "ml_design.validation_strategy.primary_metric", "metric")
+        run_name = f"{model_name}_{metric}"
+    else:
+        run_name = mlflow_cfg.get("run_name", model_name)
+
+    return mlflow.start_run(run_name=run_name), mlflow
+
+
+def _log_to_mlflow(mlflow, cfg, model, threshold, val_value,
+                   test_metrics, feature_cols, primary_metric, config_path):
+    """Log params, metrics, artifacts, and optionally register the model."""
+    mlflow_cfg = cfg.get("mlflow") or {}
+    model_name = cfg_mod.get(cfg, "ml_design.selected_algorithm.name")
+
+    tags = mlflow_cfg.get("tags") or {}
+    if tags:
+        mlflow.set_tags(tags)
+
+    if mlflow_cfg.get("log_params", True):
+        params = {
+            "model":              model_name,
+            "primary_metric":     primary_metric,
+            "split_strategy":     cfg_mod.get(cfg, "ml_design.training_strategy.split_strategy", "random"),
+            "threshold_strategy": cfg_mod.get(cfg, "ml_design.threshold_strategy.method", "f1_optimal"),
+            "feature_strategy":   cfg_mod.get(cfg, "ml_design.feature_strategy", "raw"),
+            "random_state":       cfg_mod.get(cfg, "ml_design.training_strategy.random_state", 42),
+            "test_size":          cfg_mod.get(cfg, "ml_design.training_strategy.test_size", 0.2),
+            "n_features":         len(feature_cols),
+            "threshold":          round(float(threshold), 6),
+        }
+        hp = ((cfg.get("hyperparameters") or {}).get(model_name) or {})
+        for k, v in hp.items():
+            params[f"hp_{k}"] = v
+        mlflow.log_params(params)
+
+    if mlflow_cfg.get("log_metrics", True):
+        if val_value is not None:
+            mlflow.log_metric(f"val_{primary_metric}", round(float(val_value), 4))
+        for k, v in test_metrics.items():
+            mlflow.log_metric(f"test_{k}", float(v))
+
+    if mlflow_cfg.get("log_artifacts", True):
+        for fname in ("scaler.pkl", "model.pkl", "meta.json", "train_report.json"):
+            mlflow.log_artifact(str(ARTIFACT_DIR / fname))
+        mlflow.log_artifact(str(config_path))
+
+    if mlflow_cfg.get("register_model", False):
+        registered_name = (
+            mlflow_cfg.get("registered_model_name")
+            or cfg_mod.get(cfg, "project.name", "anomaly_model")
+        )
+        flavor = mlflow_cfg.get("artifact_flavor", "sklearn")
+        if flavor == "sklearn":
+            mlflow.sklearn.log_model(
+                sk_model=model,
+                artifact_path="model",
+                registered_model_name=registered_name,
+            )
+        else:
+            mlflow.pyfunc.log_model(
+                artifact_path="model",
+                python_model=model,
+                registered_model_name=registered_name,
+            )
+
+        stage = mlflow_cfg.get("model_stage", "none")
+        if stage and stage not in ("none", "archived"):
+            from mlflow.tracking import MlflowClient
+            client = MlflowClient()
+            versions = client.get_latest_versions(registered_name, stages=["None"])
+            if versions:
+                client.transition_model_version_stage(
+                    name=registered_name,
+                    version=versions[0].version,
+                    stage=stage.capitalize(),
+                )
+            print(f"  [mlflow] Registered '{registered_name}' → stage: {stage}")
+        else:
+            print(f"  [mlflow] Registered '{registered_name}'")
+
+
 def main(args):
     # ── 1. Config ─────────────────────────────────────────────────────────────
     config_path = args.config or (ROOT / "ml-project.yaml")
@@ -62,10 +179,13 @@ def main(args):
         sys.exit(1)
 
     primary_metric = cfg_mod.get(cfg, "ml_design.validation_strategy.primary_metric", "f1")
+    mlflow_enabled = (cfg.get("mlflow") or {}).get("enabled", False)
+
     print(f"\n{'='*60}")
     print(f"  Project : {cfg_mod.get(cfg, 'project.name', 'unnamed')}")
     print(f"  Model   : {model_name}")
     print(f"  Metric  : {primary_metric}")
+    print(f"  MLflow  : {'enabled' if mlflow_enabled else 'disabled'}")
     print(f"{'='*60}\n")
 
     # ── 2. Load + split data ──────────────────────────────────────────────────
@@ -88,60 +208,76 @@ def main(args):
     X_val_s   = scaler.transform(X_val)
     X_test_s  = scaler.transform(X_test)
 
-    # ── 4. Train ──────────────────────────────────────────────────────────────
-    print(f"\nTraining [{model_name}]...")
-    module = _import_model(model_name)
-    model, model_meta = module.train(X_train_s, y_train, cfg)
+    # ── 4-8. Train, evaluate, save, log — inside MLflow run if enabled ────────
+    run_ctx, mlflow = _setup_mlflow(cfg)
+    with run_ctx:
+        if mlflow:
+            run = mlflow.active_run()
+            exp = (cfg.get("mlflow") or {}).get("experiment_name", "")
+            print(f"  [mlflow] run_id={run.info.run_id}  experiment={exp}\n")
 
-    # ── 5. Threshold tuning ───────────────────────────────────────────────────
-    val_scores = module.get_scores(model, X_val_s, model_meta)
-    if y_val is not None:
-        threshold, val_value = find_best_threshold(val_scores, y_val, cfg)
-        print(f"\nVal threshold: {threshold:.4f}  {primary_metric}={val_value:.4f}")
-    else:
-        # No labels — use contamination-based percentile
-        contamination = cfg_mod.get(cfg, f"hyperparameters.{model_name}.contamination", "auto")
-        pct = 99.0 if contamination == "auto" else (1 - float(contamination)) * 100
-        threshold = float(np.percentile(val_scores, pct))
-        val_value = None
-        print(f"\nVal threshold (percentile {100-pct:.1f}%): {threshold:.4f}")
+        # ── 4. Train ──────────────────────────────────────────────────────────
+        print(f"Training [{model_name}]...")
+        module = _import_model(model_name)
+        model, model_meta = module.train(X_train_s, y_train, cfg)
 
-    # ── 6. Test evaluation ────────────────────────────────────────────────────
-    test_scores = module.get_scores(model, X_test_s, model_meta)
-    y_pred_test = (test_scores >= threshold).astype(int)
+        # ── 5. Threshold tuning ───────────────────────────────────────────────
+        val_scores = module.get_scores(model, X_val_s, model_meta)
+        if y_val is not None:
+            threshold, val_value = find_best_threshold(val_scores, y_val, cfg)
+            print(f"\nVal threshold: {threshold:.4f}  {primary_metric}={val_value:.4f}")
+        else:
+            contamination = cfg_mod.get(cfg, f"hyperparameters.{model_name}.contamination", "auto")
+            pct = 99.0 if contamination == "auto" else (1 - float(contamination)) * 100
+            threshold = float(np.percentile(val_scores, pct))
+            val_value = None
+            print(f"\nVal threshold (percentile {100-pct:.1f}%): {threshold:.4f}")
 
-    if y_test is not None:
-        test_metrics = compute_all(y_test, y_pred_test, test_scores)
-        print("\nTest metrics:")
-        for k, v in test_metrics.items():
-            marker = " <- primary" if k == primary_metric else ""
-            print(f"  {k}: {v}{marker}")
-    else:
-        flagged = y_pred_test.sum()
-        print(f"\nFlagged on test set: {flagged:,} ({flagged/len(y_pred_test)*100:.3f}%)")
-        test_metrics = {"flagged": int(flagged)}
+        # ── 6. Test evaluation ────────────────────────────────────────────────
+        test_scores = module.get_scores(model, X_test_s, model_meta)
+        y_pred_test = (test_scores >= threshold).astype(int)
 
-    # ── 7. Save artifacts ─────────────────────────────────────────────────────
-    joblib.dump(scaler, ARTIFACT_DIR / "scaler.pkl")
-    joblib.dump(model,  ARTIFACT_DIR / "model.pkl")
+        if y_test is not None:
+            test_metrics = compute_all(y_test, y_pred_test, test_scores)
+            print("\nTest metrics:")
+            for k, v in test_metrics.items():
+                marker = " <- primary" if k == primary_metric else ""
+                print(f"  {k}: {v}{marker}")
+        else:
+            flagged = y_pred_test.sum()
+            print(f"\nFlagged on test set: {flagged:,} ({flagged/len(y_pred_test)*100:.3f}%)")
+            test_metrics = {"flagged": int(flagged)}
 
-    artifact_meta = {
-        "model_name":    model_name,
-        "threshold":     threshold,
-        "feature_cols":  feature_cols,
-        "primary_metric": primary_metric,
-        "val_metric":    {primary_metric: round(val_value, 4)} if val_value else None,
-        "model_meta":    model_meta,
-    }
-    with open(ARTIFACT_DIR / "meta.json", "w") as f:
-        json.dump(artifact_meta, f, indent=2)
+        # ── 7. Save local artifacts ───────────────────────────────────────────
+        joblib.dump(scaler, ARTIFACT_DIR / "scaler.pkl")
+        joblib.dump(model,  ARTIFACT_DIR / "model.pkl")
 
-    report = {
-        "val":  {primary_metric: round(val_value, 4)} if val_value else None,
-        "test": test_metrics,
-    }
-    with open(ARTIFACT_DIR / "train_report.json", "w") as f:
-        json.dump(report, f, indent=2)
+        artifact_meta = {
+            "model_name":     model_name,
+            "threshold":      threshold,
+            "feature_cols":   feature_cols,
+            "primary_metric": primary_metric,
+            "val_metric":     {primary_metric: round(val_value, 4)} if val_value else None,
+            "model_meta":     model_meta,
+        }
+        with open(ARTIFACT_DIR / "meta.json", "w") as f:
+            json.dump(artifact_meta, f, indent=2)
+
+        report = {
+            "val":  {primary_metric: round(val_value, 4)} if val_value else None,
+            "test": test_metrics,
+        }
+        with open(ARTIFACT_DIR / "train_report.json", "w") as f:
+            json.dump(report, f, indent=2)
+
+        # ── 8. MLflow log ─────────────────────────────────────────────────────
+        if mlflow:
+            print("\n  [mlflow] Logging params, metrics, artifacts...")
+            _log_to_mlflow(
+                mlflow, cfg, model, threshold, val_value,
+                test_metrics, feature_cols, primary_metric, config_path,
+            )
+            print("  [mlflow] Done.")
 
     # write decisions back to config
     decisions = cfg_mod.get(cfg, "requirements.user_decisions", [])

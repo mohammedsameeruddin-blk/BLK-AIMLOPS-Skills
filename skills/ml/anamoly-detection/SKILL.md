@@ -90,7 +90,8 @@ I'll collect your requirements and fill in ml-project.yaml there.
 
 For step 22, read `skills/mlops/mlflow/SKILL.md` and ask menus from
 `skills/mlops/mlflow/options.md` (enable → tracking backend → experiment →
-register). Write the `mlflow:` block into this project’s `ml-project.yaml`.
+register). Only write the `mlflow:` block if the user says **yes** to enabling
+MLflow. If the user says no, write nothing — the template default handles it.
 
 > Phases 1 and 2 are **required** before training.
 > Phase 3 is optional — ask: *"Do you want to configure operations settings
